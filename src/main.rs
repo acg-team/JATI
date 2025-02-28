@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::Write;
 use std::result::Result::Ok;
 
-use anyhow::Context;
 use anyhow::{bail, Error};
 use clap::Parser;
 
@@ -69,13 +68,15 @@ fn main() -> Result<()> {
     info!("{}", cfg);
 
     info!("Running on sequences from {}.", cfg.seq_file.display());
+    let mut info_builder = PhyloInfoBuilder::new(cfg.seq_file.clone());
     match &cfg.input_tree {
-        Some(tree_file) => info!("Using tree from {}.", tree_file.display()),
+        Some(tree_file) => {
+            info!("Using tree from {}.", tree_file.display());
+            info_builder = info_builder.tree_file(tree_file.to_owned());
+        }
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
-    let info = PhyloInfoBuilder::new(cfg.seq_file.clone())
-        .tree_file(cfg.input_tree.clone().context("missing input_tree")?)
-        .build()?;
+    let info = info_builder.build()?;
 
     let (cost, tree) = match cfg.gap_handling {
         GapHandling::PIP => {
