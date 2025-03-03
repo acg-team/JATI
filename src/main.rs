@@ -136,7 +136,7 @@ fn run_optimisation(
         let o = TopologyOptimiser::new(model_optimiser.run()?.cost)
             .run()
             .unwrap();
-        final_cost = o.final_logl;
+        final_cost = o.final_cost;
         cost = o.cost;
     }
 
