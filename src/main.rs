@@ -27,7 +27,7 @@ type Result<T> = std::result::Result<T, Error>;
 macro_rules! run_pip_optimisation {
     ($model:ty, $cfg:expr, $info:expr) => {
         run_optimisation(
-            PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params)?, $info)
+            PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params), $info)
                 .build()?,
             $cfg.freq_opt,
             $cfg.max_iters,
@@ -40,7 +40,7 @@ macro_rules! run_subst_optimisation {
     ($model:ty, $cfg:expr, $info:expr) => {
         run_optimisation(
             SubstitutionCostBuilder::new(
-                SubstModel::<$model>::new(&$cfg.freqs, &$cfg.params)?,
+                SubstModel::<$model>::new(&$cfg.freqs, &$cfg.params),
                 $info,
             )
             .build()?,
