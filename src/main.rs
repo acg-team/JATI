@@ -8,14 +8,16 @@ use clap::Parser;
 
 use log::{debug, info};
 
+use phylo::evolutionary_models::EvoModel;
 use phylo::evolutionary_models::FrequencyOptimisation;
 use phylo::io::write_newick_to_file;
 use phylo::likelihood::{ModelSearchCost, TreeSearchCost};
 use phylo::optimisers::{ModelOptimiser, TopologyOptimiser};
+use phylo::phylo_info::PhyloInfo;
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
 use phylo::substitution_models::{
-    dna_models::*, protein_models::*, SubstModel, SubstitutionCostBuilder,
+    dna_models::*, protein_models::*, QMatrix, SubstModel, SubstitutionCostBuilder,
 };
 use phylo::tree::Tree;
 
@@ -24,31 +26,29 @@ use crate::cli::{Cli, ConfigBuilder, GapHandling};
 
 type Result<T> = std::result::Result<T, Error>;
 
-macro_rules! run_pip_optimisation {
-    ($model:ty, $cfg:expr, $info:expr) => {
-        run_optimisation(
-            PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params)?, $info)
-                .build()?,
-            $cfg.freq_opt,
-            $cfg.max_iters,
-            $cfg.epsilon,
-        )?
-    };
+fn run_pip_optimisation<Model: QMatrix + Clone + std::fmt::Display + 'static>(
+    cfg: &cli::Config,
+    info: PhyloInfo,
+) -> Result<(f64, phylo::tree::Tree)> {
+    run_optimisation(
+        PIPCostBuilder::new(PIPModel::<Model>::new(&cfg.freqs, &cfg.params)?, info).build()?,
+        cfg.freq_opt,
+        cfg.max_iters,
+        cfg.epsilon,
+    )
 }
 
-macro_rules! run_subst_optimisation {
-    ($model:ty, $cfg:expr, $info:expr) => {
-        run_optimisation(
-            SubstitutionCostBuilder::new(
-                SubstModel::<$model>::new(&$cfg.freqs, &$cfg.params)?,
-                $info,
-            )
+fn run_subst_optimisation<Model: QMatrix + Clone + std::fmt::Display + 'static>(
+    cfg: &cli::Config,
+    info: PhyloInfo,
+) -> Result<(f64, phylo::tree::Tree)> {
+    run_optimisation(
+        SubstitutionCostBuilder::new(SubstModel::<Model>::new(&cfg.freqs, &cfg.params)?, info)
             .build()?,
-            $cfg.freq_opt,
-            $cfg.max_iters,
-            $cfg.epsilon,
-        )?
-    };
+        cfg.freq_opt,
+        cfg.max_iters,
+        cfg.epsilon,
+    )
 }
 
 fn main() -> Result<()> {
@@ -68,44 +68,46 @@ fn main() -> Result<()> {
     info!("{}", cfg);
 
     info!("Running on sequences from {}.", cfg.seq_file.display());
+    let mut info_builder = PhyloInfoBuilder::new(cfg.seq_file.clone());
     match &cfg.input_tree {
-        Some(tree_file) => info!("Using tree from {}.", tree_file.display()),
+        Some(tree_file) => {
+            info!("Using tree from {}.", tree_file.display());
+            info_builder = info_builder.tree_file(tree_file.to_owned());
+        }
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
-    let info = PhyloInfoBuilder::new(cfg.seq_file)
-        .tree_file(cfg.input_tree)
-        .build()?;
+    let info = info_builder.build()?;
 
     let (cost, tree) = match cfg.gap_handling {
         GapHandling::PIP => {
             info!("Gap handling: PIP.");
             match cfg.model.as_str() {
-                "JC69" => run_pip_optimisation!(JC69, cfg, info),
-                "K80" => run_pip_optimisation!(K80, cfg, info),
-                "HKY85" | "HKY" => run_pip_optimisation!(HKY, cfg, info),
-                "TN93" => run_pip_optimisation!(TN93, cfg, info),
-                "GTR" => run_pip_optimisation!(GTR, cfg, info),
-                "WAG" => run_pip_optimisation!(WAG, cfg, info),
-                "HIVB" => run_pip_optimisation!(HIVB, cfg, info),
-                "BLOSUM" => run_pip_optimisation!(BLOSUM, cfg, info),
-                _ => bail!("Unknown model: {}", cfg.model),
+                "JC69" => run_pip_optimisation::<JC69>(&cfg, info),
+                "K80" => run_pip_optimisation::<K80>(&cfg, info),
+                "HKY85" | "HKY" => run_pip_optimisation::<HKY>(&cfg, info),
+                "TN93" => run_pip_optimisation::<TN93>(&cfg, info),
+                "GTR" => run_pip_optimisation::<GTR>(&cfg, info),
+                "WAG" => run_pip_optimisation::<WAG>(&cfg, info),
+                "HIVB" => run_pip_optimisation::<HIVB>(&cfg, info),
+                "BLOSUM" => run_pip_optimisation::<BLOSUM>(&cfg, info),
+                _ => bail!("Unknown model: {}", &cfg.model),
             }
         }
         GapHandling::Missing => {
             info!("Gap handling: as missing data.");
             match cfg.model.as_str() {
-                "JC69" => run_subst_optimisation!(JC69, cfg, info),
-                "K80" => run_subst_optimisation!(K80, cfg, info),
-                "HKY85" | "HKY" => run_subst_optimisation!(HKY, cfg, info),
-                "TN93" => run_subst_optimisation!(TN93, cfg, info),
-                "GTR" => run_subst_optimisation!(GTR, cfg, info),
-                "WAG" => run_subst_optimisation!(WAG, cfg, info),
-                "HIVB" => run_subst_optimisation!(HIVB, cfg, info),
-                "BLOSUM" => run_subst_optimisation!(BLOSUM, cfg, info),
+                "JC69" => run_subst_optimisation::<JC69>(&cfg, info),
+                "K80" => run_subst_optimisation::<K80>(&cfg, info),
+                "HKY85" | "HKY" => run_subst_optimisation::<HKY>(&cfg, info),
+                "TN93" => run_subst_optimisation::<TN93>(&cfg, info),
+                "GTR" => run_subst_optimisation::<GTR>(&cfg, info),
+                "WAG" => run_subst_optimisation::<WAG>(&cfg, info),
+                "HIVB" => run_subst_optimisation::<HIVB>(&cfg, info),
+                "BLOSUM" => run_subst_optimisation::<BLOSUM>(&cfg, info),
                 _ => bail!("Unknown model: {}", cfg.model),
             }
         }
-    };
+    }?;
 
     info!("Putting resulting tree in {}", cfg.out_tree.display());
 
