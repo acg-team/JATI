@@ -8,6 +8,7 @@ use clap::Parser;
 
 use log::{debug, info};
 
+use phylo::alphabets::{dna_alphabet, protein_alphabet};
 use phylo::evolutionary_models::FrequencyOptimisation;
 use phylo::io::write_newick_to_file;
 use phylo::likelihood::{ModelSearchCost, TreeSearchCost};
@@ -72,8 +73,22 @@ fn main() -> Result<()> {
         Some(tree_file) => info!("Using tree from {}.", tree_file.display()),
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
+
+    let alphabet = match cfg.model.as_str() {
+        "JC69" | "K80" | "HKY85" | "HKY" | "TN93" | "GTR" => {
+            info!("Assuming DNA sequences");
+            Some(dna_alphabet())
+        }
+        "WAG" | "HIVB" | "BLOSUM" => {
+            info!("Assuming protein sequences");
+            Some(protein_alphabet())
+        }
+        _ => None,
+    };
+
     let info = PhyloInfoBuilder::new(cfg.seq_file)
         .tree_file(cfg.input_tree)
+        .alphabet(alphabet)
         .build()?;
 
     let (cost, tree) = match cfg.gap_handling {
