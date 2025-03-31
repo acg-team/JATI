@@ -67,7 +67,7 @@ pub(super) struct Cli {
     pub(super) gap_handling: GapHandling,
 
     /// Epsilon value for numerical optimisation
-    #[arg(short, long, value_name = "EPSILON", default_value = "1e-2")]
+    #[arg(short, long, value_name = "EPSILON", default_value = "1e-5")]
     pub(super) epsilon: f64,
 }
 
