@@ -1,0 +1,88 @@
+name: Build and release installers
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install packaging tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          cargo install cargo-deb
+          cargo install cargo-rpm
+
+      - name: Install packaging tools (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cargo install cargo-wix
+
+      - name: Build release binary
+        run: cargo build --release
+
+      # Linux: Package .deb and .rpm
+      - name: Package as .deb (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo deb
+      - name: Package as .rpm (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo rpm build
+
+      # Windows: Package as .msi
+      - name: Prepare WiX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cargo wix init || true
+      - name: Package as .msi (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cargo wix
+
+      # MacOS: Zip binary
+      - name: Zip release binary (macOS)
+        if: matrix.os == 'macos-latest'
+        run: zip -j target/release/${{ github.event.repository.name }}-macos.zip target/release/${{ github.event.repository.name }}
+
+      # Collect artifacts
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            target/debian/*.deb
+            target/rpmbuild/RPMS/x86_64/*.rpm
+            target/wix/*.msi
+            target/release/*.exe
+            target/release/${{ github.event.repository.name }}-macos.zip
+            target/release/${{ github.event.repository.name }}
+
+      # Attach to release if this is a release build
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/debian/*.deb
+            target/rpmbuild/RPMS/x86_64/*.rpm
+            target/wix/*.msi
+            target/release/*.exe
+            target/release/${{ github.event.repository.name }}-macos.zip
+            target/release/${{ github.event.repository.name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
