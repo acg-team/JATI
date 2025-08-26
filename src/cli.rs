@@ -153,7 +153,7 @@ impl Display for Config {
             GapHandling::PIP => "PIP",
             GapHandling::Missing => "Substitution",
         };
-        writeln!(f, "Model setup: {} model with {} Q ", overmodel, self.model)?;
+        writeln!(f, "Model setup: {overmodel} model with {} Q ", self.model)?;
         writeln!(f, "Model parameters: {:?}", self.params)?;
         writeln!(f, "Model frequencies: {:?}", self.freqs)?;
 
@@ -169,24 +169,24 @@ impl ConfigBuilder {
     pub(crate) fn setup(self) -> Result<Config> {
         let run_id = self.run_name.map_or_else(
             || self.timestamp.to_utc().timestamp_millis().to_string(),
-            |name| format!("{}_{}", name, self.timestamp.to_utc().timestamp_millis()),
+            |name| format!("{name}_{}", self.timestamp.to_utc().timestamp_millis()),
         );
 
-        let out_fldr = self.out_path.join(format!("{}_out", run_id));
+        let out_fldr = self.out_path.join(format!("{run_id}_out"));
         std::fs::create_dir_all(&out_fldr)?;
 
         Ftail::new()
             .datetime_format("%H:%M:%S%.3f")
             .console(LevelFilter::Info)
             .single_file(
-                out_fldr.join(format!("{}.log", run_id)).to_str().unwrap(),
+                out_fldr.join(format!("{run_id}.log")).to_str().unwrap(),
                 true,
                 LevelFilter::Debug,
             )
             .init()?;
 
-        let out_tree = out_fldr.join(format!("{}_tree.newick", run_id));
-        let out_logl = out_fldr.join(format!("{}_logl.out", run_id));
+        let out_tree = out_fldr.join(format!("{run_id}_tree.newick"));
+        let out_logl = out_fldr.join(format!("{run_id}_logl.out"));
 
         Ok(Config {
             timestamp: self.timestamp,
