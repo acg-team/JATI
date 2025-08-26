@@ -10,13 +10,28 @@ use phylo::evolutionary_models::FrequencyOptimisation;
 
 use crate::Result;
 
-#[derive(Clone, clap::ValueEnum, Copy)]
+#[derive(Clone, clap::ValueEnum, Copy, Debug)]
 #[allow(clippy::upper_case_acronyms)]
 pub(super) enum GapHandling {
     PIP,
     Missing,
 }
-#[derive(Parser)]
+
+#[derive(Clone, clap::ValueEnum, Copy, Debug)]
+#[allow(clippy::upper_case_acronyms)]
+pub(super) enum SubstitutionModel {
+    WAG,
+    HIVB,
+    BLOSUM,
+    JC69,
+    K80,
+    HKY,
+    HKY85,
+    TN93,
+    GTR,
+}
+
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(super) struct Cli {
     /// Output folder
@@ -40,8 +55,8 @@ pub(super) struct Cli {
     pub(super) tree_file: Option<PathBuf>,
 
     /// Sequence evolution model
-    #[arg(short, long, value_name = "MODEL", rename_all = "UPPER")]
-    pub(super) model: String,
+    #[arg(short, long, value_name = "MODEL")]
+    pub(super) model: SubstitutionModel,
 
     /// Sequence evolution model parameters, e.g. alpha for k80 and
     /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order)
@@ -78,7 +93,7 @@ pub struct ConfigBuilder {
     pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
-    pub model: String,
+    pub model: SubstitutionModel,
     pub params: Vec<f64>,
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
@@ -182,7 +197,7 @@ impl ConfigBuilder {
             max_iters: self.max_iters,
             seq_file: self.seq_file,
             input_tree: self.input_tree,
-            model: self.model,
+            model: format!("{:?}", self.model),
             params: self.params,
             freqs: self.freqs,
             freq_opt: self.freq_opt,
