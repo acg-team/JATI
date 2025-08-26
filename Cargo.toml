@@ -19,3 +19,4 @@ chrono = "0.4.26"
 stats-cli = "3.0.1"
 phylo = { git = "https://github.com/acg-team/rust-phylo", branch = "develop" }
 anyhow = "1.0.86"
+ntimestamp = "1.0.0"

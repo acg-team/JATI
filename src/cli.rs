@@ -1,11 +1,11 @@
 use std::fmt::{self, Display};
 use std::path::PathBuf;
 
-use chrono::{DateTime, Local};
 use clap::Parser;
 use ftail::Ftail;
 use log::LevelFilter;
 
+use ntimestamp::Timestamp;
 use phylo::evolutionary_models::FrequencyOptimisation;
 
 use crate::Result;
@@ -84,10 +84,14 @@ pub(super) struct Cli {
     /// Epsilon value for numerical optimisation
     #[arg(short, long, value_name = "EPSILON", default_value = "1e-5")]
     pub(super) epsilon: f64,
+
+    /// PRNG seed that can be fixed for reproducible results
+    #[arg(short = 's', long = "seed", value_name = "PRNG_SEED")]
+    pub(super) prng_seed: Option<u64>,
 }
 
 pub struct ConfigBuilder {
-    pub timestamp: DateTime<Local>,
+    pub timestamp: Timestamp,
     pub out_path: PathBuf,
     pub run_name: Option<String>,
     pub max_iters: usize,
@@ -99,12 +103,13 @@ pub struct ConfigBuilder {
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
     pub epsilon: f64,
+    pub prng_seed: Option<u64>,
 }
 
 impl From<Cli> for ConfigBuilder {
     fn from(cli: Cli) -> Self {
         ConfigBuilder {
-            timestamp: Local::now(),
+            timestamp: Timestamp::now(),
             out_path: cli.out_folder,
             run_name: cli.run_name,
             max_iters: cli.max_iterations,
@@ -116,12 +121,13 @@ impl From<Cli> for ConfigBuilder {
             freq_opt: cli.freq_opt,
             gap_handling: cli.gap_handling,
             epsilon: cli.epsilon,
+            prng_seed: cli.prng_seed,
         }
     }
 }
 
 pub struct Config {
-    pub timestamp: DateTime<Local>,
+    pub timestamp: Timestamp,
     pub out_fldr: PathBuf,
     pub out_tree: PathBuf,
     pub out_logl: PathBuf,
@@ -135,6 +141,7 @@ pub struct Config {
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
     pub epsilon: f64,
+    pub prng_seed: Option<u64>,
 }
 
 impl Display for Config {
@@ -168,15 +175,15 @@ impl Display for Config {
 impl ConfigBuilder {
     pub(crate) fn setup(self) -> Result<Config> {
         let run_id = self.run_name.map_or_else(
-            || self.timestamp.to_utc().timestamp_millis().to_string(),
-            |name| format!("{name}_{}", self.timestamp.to_utc().timestamp_millis()),
+            || format!("{}", self.timestamp.as_u64()),
+            |name| format!("{name}_{}", self.timestamp.as_u64()),
         );
 
         let out_fldr = self.out_path.join(format!("{run_id}_out"));
         std::fs::create_dir_all(&out_fldr)?;
 
         Ftail::new()
-            .datetime_format("%H:%M:%S%.3f")
+            .datetime_format("%H:%M:%S")
             .console(LevelFilter::Info)
             .single_file(
                 out_fldr.join(format!("{run_id}.log")).to_str().unwrap(),
@@ -203,6 +210,7 @@ impl ConfigBuilder {
             freq_opt: self.freq_opt,
             gap_handling: self.gap_handling,
             epsilon: self.epsilon,
+            prng_seed: self.prng_seed,
         })
     }
 }
