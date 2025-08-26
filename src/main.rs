@@ -6,15 +6,18 @@ use std::result::Result::Ok;
 use anyhow::{bail, Error};
 use clap::Parser;
 
-use log::{debug, info};
+use log::{debug, error, info};
 
 use phylo::alphabets::{dna_alphabet, protein_alphabet};
 use phylo::evolutionary_models::FrequencyOptimisation;
 use phylo::io::write_newick_to_file;
 use phylo::likelihood::{ModelSearchCost, TreeSearchCost};
-use phylo::optimisers::{ModelOptimiser, TopologyOptimiser};
+use phylo::optimisers::{
+    Compatible, ModelOptimiser, MoveOptimiser, SprOptimiser, TopologyOptimiser,
+};
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
+use phylo::random::DefaultGenerator;
 use phylo::substitution_models::{
     dna_models::*, protein_models::*, SubstModel, SubstitutionCostBuilder,
 };
@@ -27,7 +30,7 @@ type Result<T> = std::result::Result<T, Error>;
 
 macro_rules! run_pip_optimisation {
     ($model:ty, $cfg:expr, $info:expr) => {
-        run_optimisation(
+        run_optimisation::<SprOptimiser>(
             PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params), $info)
                 .build()?,
             $cfg.freq_opt,
@@ -39,7 +42,7 @@ macro_rules! run_pip_optimisation {
 
 macro_rules! run_subst_optimisation {
     ($model:ty, $cfg:expr, $info:expr) => {
-        run_optimisation(
+        run_optimisation::<SprOptimiser>(
             SubstitutionCostBuilder::new(
                 SubstModel::<$model>::new(&$cfg.freqs, &$cfg.params),
                 $info,
@@ -74,7 +77,7 @@ fn main() -> Result<()> {
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
 
-    let alphabet = match cfg.model.as_str() {
+    let alphabet = match cfg.model.to_uppercase().as_str() {
         "JC69" | "K80" | "HKY85" | "HKY" | "TN93" | "GTR" => {
             info!("Assuming DNA sequences");
             Some(dna_alphabet())
@@ -124,31 +127,46 @@ fn main() -> Result<()> {
 
     info!("Putting resulting tree in {}", cfg.out_tree.display());
 
-    write_newick_to_file(&[tree.clone()], cfg.out_tree)?;
-    let mut out_logl = File::create(cfg.out_logl)?;
-    writeln!(out_logl, "{}", cost)?;
+    write_newick_to_file(std::slice::from_ref(&tree), cfg.out_tree)?;
+    let out_logl = File::create(cfg.out_logl);
 
+    info!("Final log-likelihood: {}", cost);
+    match out_logl {
+        Ok(mut file) => {
+            writeln!(file, "{cost}")?;
+        }
+        Err(error) => {
+            error!("Error creating log file: {}", error);
+        }
+    }
     Ok(())
 }
 
-fn run_optimisation(
-    cost: impl TreeSearchCost + ModelSearchCost + Display + Clone,
+fn run_optimisation<MO>(
+    cost: impl TreeSearchCost + ModelSearchCost + Display + Clone + Send + Compatible<MO>,
     freq_opt: FrequencyOptimisation,
     max_iterations: usize,
     epsilon: f64,
-) -> Result<(f64, Tree)> {
+) -> Result<(f64, Tree)>
+where
+    MO: MoveOptimiser + Default,
+{
     let mut cost = cost;
     let mut prev_cost = f64::NEG_INFINITY;
     let mut final_cost = TreeSearchCost::cost(&cost);
+
+    let rng = DefaultGenerator::default();
 
     let mut iterations = 0;
     while final_cost - prev_cost > epsilon && iterations < max_iterations {
         iterations += 1;
         info!("Iteration: {}", iterations);
 
+        let move_optimiser = MO::default();
+
         prev_cost = final_cost;
         let model_optimiser = ModelOptimiser::new(cost, freq_opt);
-        let o = TopologyOptimiser::new(model_optimiser.run()?.cost)
+        let o = TopologyOptimiser::new(model_optimiser.run()?.cost, move_optimiser, &rng)
             .run()
             .unwrap();
         final_cost = o.final_cost;
