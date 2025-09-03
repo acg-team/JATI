@@ -136,6 +136,7 @@ pub struct Config {
     pub timestamp: Timestamp,
     pub out_fldr: PathBuf,
     pub out_tree: PathBuf,
+    pub start_tree: PathBuf,
     pub out_logl: PathBuf,
     pub run_id: String,
     pub max_iters: usize,
@@ -199,12 +200,14 @@ impl ConfigBuilder {
             .init()?;
 
         let out_tree = out_fldr.join(format!("{run_id}_tree.newick"));
+        let start_tree = out_fldr.join(format!("{run_id}_start_tree.newick"));
         let out_logl = out_fldr.join(format!("{run_id}_logl.out"));
 
         Ok(Config {
             timestamp: self.timestamp,
             out_fldr,
             out_tree,
+            start_tree,
             out_logl,
             run_id,
             max_iters: self.max_iters,

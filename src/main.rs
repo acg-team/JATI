@@ -107,6 +107,10 @@ fn main() -> Result<()> {
         .alphabet(alphabet)
         .build_w_rng(&rng)?;
 
+    info!("Putting start tree in {}", cfg.start_tree.display());
+
+    write_newick_to_file(std::slice::from_ref(&info.tree), cfg.start_tree)?;
+
     let (cost, tree) = match cfg.gap_handling {
         GapHandling::PIP => {
             info!("Gap handling: PIP.");
