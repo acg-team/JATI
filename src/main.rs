@@ -17,13 +17,11 @@ use phylo::optimisers::{
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
 use phylo::random::{DefaultGenerator, RandomSource};
-use phylo::substitution_models::{
-    dna_models::*, protein_models::*, SubstModel, SubstitutionCostBuilder,
-};
+use phylo::substitution_models::{dna_models, protein_models, SubstModel, SubstitutionCostBuilder};
 use phylo::tree::Tree;
 
 mod cli;
-use crate::cli::{Cli, ConfigBuilder, GapHandling};
+use crate::cli::{Cli, ConfigBuilder, GapHandling, SubstModelId::*};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -93,16 +91,15 @@ fn main() -> Result<()> {
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
 
-    let alphabet = match cfg.model.to_uppercase().as_str() {
-        "JC69" | "K80" | "HKY85" | "HKY" | "TN93" | "GTR" => {
+    let alphabet = match cfg.model {
+        JC69 | K80 | HKY85 | HKY | TN93 | GTR => {
             info!("Assuming DNA sequences");
             Some(dna_alphabet())
         }
-        "WAG" | "HIVB" | "BLOSUM" => {
+        WAG | HIVB | BLOSUM => {
             info!("Assuming protein sequences");
             Some(protein_alphabet())
         }
-        _ => None,
     };
 
     let info = PhyloInfoBuilder::new(cfg.seq_file)
@@ -113,30 +110,30 @@ fn main() -> Result<()> {
     let (cost, tree) = match cfg.gap_handling {
         GapHandling::PIP => {
             info!("Gap handling: PIP.");
-            match cfg.model.as_str() {
-                "JC69" => run_pip_optimisation!(JC69, cfg, info, &rng),
-                "K80" => run_pip_optimisation!(K80, cfg, info, &rng),
-                "HKY85" | "HKY" => run_pip_optimisation!(HKY, cfg, info, &rng),
-                "TN93" => run_pip_optimisation!(TN93, cfg, info, &rng),
-                "GTR" => run_pip_optimisation!(GTR, cfg, info, &rng),
-                "WAG" => run_pip_optimisation!(WAG, cfg, info, &rng),
-                "HIVB" => run_pip_optimisation!(HIVB, cfg, info, &rng),
-                "BLOSUM" => run_pip_optimisation!(BLOSUM, cfg, info, &rng),
-                _ => bail!("Unknown model: {}", cfg.model),
+            match cfg.model {
+                JC69 => run_pip_optimisation!(dna_models::JC69, cfg, info, &rng),
+                K80 => run_pip_optimisation!(dna_models::K80, cfg, info, &rng),
+                HKY85 | HKY => run_pip_optimisation!(dna_models::HKY, cfg, info, &rng),
+                TN93 => run_pip_optimisation!(dna_models::TN93, cfg, info, &rng),
+                GTR => run_pip_optimisation!(dna_models::GTR, cfg, info, &rng),
+                WAG => run_pip_optimisation!(protein_models::WAG, cfg, info, &rng),
+                HIVB => run_pip_optimisation!(protein_models::HIVB, cfg, info, &rng),
+                BLOSUM => run_pip_optimisation!(protein_models::BLOSUM, cfg, info, &rng),
             }
         }
         GapHandling::Missing => {
             info!("Gap handling: as missing data.");
-            match cfg.model.as_str() {
-                "JC69" => run_subst_optimisation!(JC69, cfg, info, &rng),
-                "K80" => run_subst_optimisation!(K80, cfg, info, &rng),
-                "HKY85" | "HKY" => run_subst_optimisation!(HKY, cfg, info, &rng),
-                "TN93" => run_subst_optimisation!(TN93, cfg, info, &rng),
-                "GTR" => run_subst_optimisation!(GTR, cfg, info, &rng),
-                "WAG" => run_subst_optimisation!(WAG, cfg, info, &rng),
-                "HIVB" => run_subst_optimisation!(HIVB, cfg, info, &rng),
-                "BLOSUM" => run_subst_optimisation!(BLOSUM, cfg, info, &rng),
-                _ => bail!("Unknown model: {}", cfg.model),
+            match cfg.model {
+                JC69 => run_subst_optimisation!(dna_models::JC69, cfg, info, &rng),
+                K80 => run_subst_optimisation!(dna_models::K80, cfg, info, &rng),
+                HKY85 | HKY => {
+                    run_subst_optimisation!(dna_models::HKY, cfg, info, &rng)
+                }
+                TN93 => run_subst_optimisation!(dna_models::TN93, cfg, info, &rng),
+                GTR => run_subst_optimisation!(dna_models::GTR, cfg, info, &rng),
+                WAG => run_subst_optimisation!(protein_models::WAG, cfg, info, &rng),
+                HIVB => run_subst_optimisation!(protein_models::HIVB, cfg, info, &rng),
+                BLOSUM => run_subst_optimisation!(protein_models::BLOSUM, cfg, info, &rng),
             }
         }
     };

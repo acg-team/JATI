@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use ftail::Ftail;
 use log::LevelFilter;
-
 use ntimestamp::Timestamp;
+
 use phylo::evolutionary_models::FrequencyOptimisation;
 
 use crate::Result;
@@ -19,7 +19,7 @@ pub(super) enum GapHandling {
 
 #[derive(Clone, clap::ValueEnum, Copy, Debug)]
 #[allow(clippy::upper_case_acronyms)]
-pub(super) enum SubstitutionModel {
+pub(super) enum SubstModelId {
     WAG,
     HIVB,
     BLOSUM,
@@ -29,6 +29,12 @@ pub(super) enum SubstitutionModel {
     HKY85,
     TN93,
     GTR,
+}
+
+impl Display for SubstModelId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -56,7 +62,7 @@ pub(super) struct Cli {
 
     /// Sequence evolution model
     #[arg(short, long, value_name = "MODEL")]
-    pub(super) model: SubstitutionModel,
+    pub(super) model: SubstModelId,
 
     /// Sequence evolution model parameters, e.g. alpha for k80 and
     /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order)
@@ -97,7 +103,7 @@ pub struct ConfigBuilder {
     pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
-    pub model: SubstitutionModel,
+    pub model: SubstModelId,
     pub params: Vec<f64>,
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
@@ -135,7 +141,7 @@ pub struct Config {
     pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
-    pub model: String,
+    pub model: SubstModelId,
     pub params: Vec<f64>,
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
@@ -204,7 +210,7 @@ impl ConfigBuilder {
             max_iters: self.max_iters,
             seq_file: self.seq_file,
             input_tree: self.input_tree,
-            model: format!("{:?}", self.model),
+            model: self.model,
             params: self.params,
             freqs: self.freqs,
             freq_opt: self.freq_opt,
