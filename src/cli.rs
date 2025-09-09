@@ -61,7 +61,7 @@ pub(super) struct Cli {
     pub(super) tree_file: Option<PathBuf>,
 
     /// Sequence evolution model
-    #[arg(short, long, value_name = "MODEL")]
+    #[arg(short, long, value_name = "MODEL", ignore_case = true)]
     pub(super) model: SubstModelId,
 
     /// Sequence evolution model parameters, e.g. alpha for k80 and
@@ -84,7 +84,13 @@ pub(super) struct Cli {
     pub(super) freq_opt: FrequencyOptimisation,
 
     /// Gap handling method: using the PIP model or treating gaps as missing data
-    #[arg(short, long, value_name = "GAP_HANDLING")]
+    #[arg(
+        short,
+        long,
+        value_name = "GAP_HANDLING",
+        ignore_case = true,
+        default_value = "missing"
+    )]
     pub(super) gap_handling: GapHandling,
 
     /// Epsilon value for numerical optimisation
@@ -92,7 +98,7 @@ pub(super) struct Cli {
     pub(super) epsilon: f64,
 
     /// PRNG seed that can be fixed for reproducible results
-    #[arg(short = 's', long = "seed", value_name = "PRNG_SEED")]
+    #[arg(long = "seed", value_name = "PRNG_SEED")]
     pub(super) prng_seed: Option<u64>,
 }
 
