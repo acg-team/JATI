@@ -13,6 +13,7 @@ use phylo::io::write_newick_to_file;
 use phylo::likelihood::{ModelSearchCost, TreeSearchCost};
 use phylo::optimisers::{
     Compatible, ModelOptimiser, MoveOptimiser, SprOptimiser, TopologyOptimiser,
+    TopologyOptimiserPredicate,
 };
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
@@ -182,9 +183,14 @@ where
 
         prev_cost = final_cost;
         let model_optimiser = ModelOptimiser::new(cost, freq_opt);
-        let o = TopologyOptimiser::new(model_optimiser.run()?.cost, move_optimiser, rng)
-            .run()
-            .unwrap();
+        let o = TopologyOptimiser::new_with_pred(
+            model_optimiser.run()?.cost,
+            move_optimiser,
+            rng,
+            TopologyOptimiserPredicate::gt_epsilon(epsilon),
+        )
+        .run()
+        .unwrap();
         final_cost = o.final_cost;
         cost = o.cost;
     }
