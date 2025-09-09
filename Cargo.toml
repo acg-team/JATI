@@ -10,6 +10,10 @@ description = "Joint Alignment and Tree Inference"
 [profile.release]
 opt-level = 3
 
+[profile.dev]
+opt-level = 3
+debug = true
+
 [dependencies]
 clap = { version = "4.3.11", features = ["derive"] }
 log = "0.4.19"
