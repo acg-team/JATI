@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io::Write;
 use std::result::Result::Ok;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use clap::Parser;
-use log::{debug, error, info};
+use log::{debug, info};
 
 use phylo::alphabets::{dna_alphabet, protein_alphabet};
 use phylo::evolutionary_models::FrequencyOptimisation;
@@ -56,108 +56,105 @@ macro_rules! run_subst_optimisation {
 }
 
 fn main() -> Result<()> {
-    let cli = match Cli::try_parse() {
-        Ok(cli) => {
-            info!("Successfully parsed the command line parameters");
-            cli
-        }
-        Err(error) => {
-            bail!("Unable to parse command line arguments: \n {}", error)
-        }
-    };
-    let cfg_build: ConfigBuilder = cli.into();
-    let cfg = cfg_build.setup()?;
+    let cfg = ConfigBuilder::from(Cli::try_parse()?).setup()?;
 
     info!("JATI run started.");
     info!("{}", cfg);
 
-    let seed = match cfg.prng_seed {
-        None => {
-            info!(
-                "Using current timestamp in milliseconds as the PRNG seed: {}",
-                cfg.timestamp.as_u64()
-            );
-            cfg.timestamp.as_u64()
-        }
-        Some(seed) => {
-            info!("Using provided PRNG seed: {seed}");
-            seed
-        }
-    };
-    let rng = DefaultGenerator::new(seed);
+    let rng = setup_rng(&cfg);
 
     info!("Running on sequences from {}.", cfg.seq_file.display());
+
+    let alphabet = match cfg.model {
+        JC69 | K80 | HKY85 | HKY | TN93 | GTR => {
+            info!("Assuming DNA sequences");
+            dna_alphabet()
+        }
+        WAG | HIVB | BLOSUM => {
+            info!("Assuming protein sequences");
+            protein_alphabet()
+        }
+    };
+
     match &cfg.input_tree {
         Some(tree_file) => info!("Using tree from {}.", tree_file.display()),
         None => info!("No input tree provided, building NJ tree from sequences."),
     }
 
-    let alphabet = match cfg.model {
-        JC69 | K80 | HKY85 | HKY | TN93 | GTR => {
-            info!("Assuming DNA sequences");
-            Some(dna_alphabet())
-        }
-        WAG | HIVB | BLOSUM => {
-            info!("Assuming protein sequences");
-            Some(protein_alphabet())
-        }
-    };
-
     let info = PhyloInfoBuilder::new(cfg.seq_file)
         .tree_file(cfg.input_tree)
-        .alphabet(alphabet)
+        .alphabet(Some(alphabet))
         .build_w_rng(&rng)?;
 
     info!("Putting start tree in {}", cfg.start_tree.display());
 
     write_newick_to_file(std::slice::from_ref(&info.tree), cfg.start_tree)?;
 
-    let (cost, tree) = match cfg.gap_handling {
-        GapHandling::PIP => {
-            info!("Gap handling: PIP.");
-            match cfg.model {
-                JC69 => run_pip_optimisation!(dna_models::JC69, cfg, info, &rng),
-                K80 => run_pip_optimisation!(dna_models::K80, cfg, info, &rng),
-                HKY85 | HKY => run_pip_optimisation!(dna_models::HKY, cfg, info, &rng),
-                TN93 => run_pip_optimisation!(dna_models::TN93, cfg, info, &rng),
-                GTR => run_pip_optimisation!(dna_models::GTR, cfg, info, &rng),
-                WAG => run_pip_optimisation!(protein_models::WAG, cfg, info, &rng),
-                HIVB => run_pip_optimisation!(protein_models::HIVB, cfg, info, &rng),
-                BLOSUM => run_pip_optimisation!(protein_models::BLOSUM, cfg, info, &rng),
-            }
+    info!(
+        "Gap handling: {}.",
+        match cfg.gap_handling {
+            GapHandling::PIP => "PIP",
+            GapHandling::Missing => "as missing data",
         }
-        GapHandling::Missing => {
-            info!("Gap handling: as missing data.");
-            match cfg.model {
-                JC69 => run_subst_optimisation!(dna_models::JC69, cfg, info, &rng),
-                K80 => run_subst_optimisation!(dna_models::K80, cfg, info, &rng),
-                HKY85 | HKY => {
-                    run_subst_optimisation!(dna_models::HKY, cfg, info, &rng)
-                }
-                TN93 => run_subst_optimisation!(dna_models::TN93, cfg, info, &rng),
-                GTR => run_subst_optimisation!(dna_models::GTR, cfg, info, &rng),
-                WAG => run_subst_optimisation!(protein_models::WAG, cfg, info, &rng),
-                HIVB => run_subst_optimisation!(protein_models::HIVB, cfg, info, &rng),
-                BLOSUM => run_subst_optimisation!(protein_models::BLOSUM, cfg, info, &rng),
-            }
+    );
+    let (cost, tree) = match (cfg.gap_handling, cfg.model) {
+        (GapHandling::PIP, JC69) => run_pip_optimisation!(dna_models::JC69, cfg, info, &rng),
+        (GapHandling::PIP, K80) => run_pip_optimisation!(dna_models::K80, cfg, info, &rng),
+        (GapHandling::PIP, HKY85) | (GapHandling::PIP, HKY) => {
+            run_pip_optimisation!(dna_models::HKY, cfg, info, &rng)
+        }
+        (GapHandling::PIP, TN93) => run_pip_optimisation!(dna_models::TN93, cfg, info, &rng),
+        (GapHandling::PIP, GTR) => run_pip_optimisation!(dna_models::GTR, cfg, info, &rng),
+        (GapHandling::PIP, WAG) => run_pip_optimisation!(protein_models::WAG, cfg, info, &rng),
+        (GapHandling::PIP, HIVB) => run_pip_optimisation!(protein_models::HIVB, cfg, info, &rng),
+        (GapHandling::PIP, BLOSUM) => {
+            run_pip_optimisation!(protein_models::BLOSUM, cfg, info, &rng)
+        }
+
+        (GapHandling::Missing, JC69) => run_subst_optimisation!(dna_models::JC69, cfg, info, &rng),
+        (GapHandling::Missing, K80) => run_subst_optimisation!(dna_models::K80, cfg, info, &rng),
+        (GapHandling::Missing, HKY85) | (GapHandling::Missing, HKY) => {
+            run_subst_optimisation!(dna_models::HKY, cfg, info, &rng)
+        }
+        (GapHandling::Missing, TN93) => run_subst_optimisation!(dna_models::TN93, cfg, info, &rng),
+        (GapHandling::Missing, GTR) => run_subst_optimisation!(dna_models::GTR, cfg, info, &rng),
+        (GapHandling::Missing, WAG) => {
+            run_subst_optimisation!(protein_models::WAG, cfg, info, &rng)
+        }
+        (GapHandling::Missing, HIVB) => {
+            run_subst_optimisation!(protein_models::HIVB, cfg, info, &rng)
+        }
+        (GapHandling::Missing, BLOSUM) => {
+            run_subst_optimisation!(protein_models::BLOSUM, cfg, info, &rng)
         }
     };
+
+    info!("Final log-likelihood: {}", cost);
 
     info!("Putting resulting tree in {}", cfg.out_tree.display());
 
     write_newick_to_file(std::slice::from_ref(&tree), cfg.out_tree)?;
-    let out_logl = File::create(cfg.out_logl);
 
-    info!("Final log-likelihood: {}", cost);
-    match out_logl {
-        Ok(mut file) => {
-            writeln!(file, "{cost}")?;
-        }
-        Err(error) => {
-            error!("Error creating log file: {}", error);
-        }
-    }
+    let mut out_logl = File::create(cfg.out_logl)?;
+
+    writeln!(out_logl, "{cost}")?;
+
     Ok(())
+}
+
+fn setup_rng(cfg: &cli::Config) -> DefaultGenerator {
+    let seed = match cfg.prng_seed {
+        None => {
+            let seed = cfg.timestamp.as_u64();
+            info!("Using current timestamp in milliseconds as the PRNG seed: {seed}");
+            seed
+        }
+        Some(seed) => {
+            info!("Using provided PRNG seed: {seed}");
+            seed
+        }
+    };
+    DefaultGenerator::new(seed)
 }
 
 fn run_optimisation<MO>(
