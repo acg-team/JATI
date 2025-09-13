@@ -8,10 +8,11 @@
 - **Gap handling**: PIP model or treating gaps as missing data;
 - **Character frequency optimisation**: fixed or empirical frequencies (ML estimates to be added);
 - **Tree optimisation**: SPR-based topology and branch length optimisation;
+- **Parallel computation**: optional multi-threading support for faster tree search;
 - **Comprehensive logging**: debug and info level logging with timestamps;
 - **Reproducible results**: optional PRNG seed for deterministic runs.
 
-## Optimisation process
+### Optimisation process
 
 JATI uses an iterative optimisation approach:
 
@@ -21,6 +22,27 @@ JATI uses an iterative optimisation approach:
 
 The process continues until convergence (change in log-likelihood < epsilon) or maximum iterations reached.
 
+### Parallelisation
+
+When built with the `parallel` feature, JATI can use multiple CPU cores to speed up tree search by parallelising the evaluation of possible regrafting positions for each pruning location during SPR moves.
+
+#### Performance considerations
+
+- **Benefits**: Speedup on multi-core systems during tree topology optimisation, especially for larger trees;
+- **Memory usage**: Parallel execution may increase memory consumption due to thread-local data structures;
+- **Thread count**: JATI automatically detects and uses all available CPU cores. You can control the number of threads using the `RAYON_NUM_THREADS` environment variable:
+
+```bash
+# Limit to 4 threads
+RAYON_NUM_THREADS=4 ./target/release/jati --seq-file data/dna_alignment.fasta --model JC69
+
+# Use all available cores (default behavior)
+./target/release/jati --seq-file data/dna_alignment.fasta --model JC69
+```
+
+#### Reproducibility with parallel execution
+
+When using the `parallel` feature, results remain deterministic when a PRNG seed is specified, despite the parallel execution. The parallelisation is designed to maintain reproducible results across runs and the final tree and log-likelihood should be indentical to a run without the `parallel` feature given the same seed.
 
 ## Installation
 
@@ -44,11 +66,22 @@ cd JATI
 ```
 
 2. Build the project:
+**Standard build** (single-threaded):
 ```bash
 cargo build --release
 ```
 
+**Parallel build** (multi-threaded support):
+```bash
+cargo build --release --features parallel
+```
+
 The compiled binary will be available at `target/release/jati`.
+
+
+#### Build features
+
+- **`parallel`**: Enables multi-threading support for improved performance on multi-core systems. This feature uses Rayon for parallel computation of likelihood calculations and tree search operations.
 
 ## Usage
 
@@ -237,7 +270,8 @@ This ensures deterministic results across runs on the same system with the same 
 - Command-line parsing with `clap`;
 - Logging with `log` and `ftail`;
 - Timestamps with `ntimestamp`;
-- Error handling with `anyhow`.
+- Error handling with `anyhow`;
+- Optional: `rayon` for parallel computation (when `parallel` feature is enabled).
 
 ## License
 
