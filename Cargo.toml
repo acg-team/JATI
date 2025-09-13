@@ -20,7 +20,7 @@ debug = true
 clap = { version = "4.3.11", features = ["derive"] }
 log = "0.4.19"
 ftail = "0.2.0"
-stats-cli = "3.0.1"
+
 phylo = { git = "https://github.com/acg-team/rust-phylo", branch = "develop" }
 anyhow = "1.0.86"
 ntimestamp = "1.0.0"
