@@ -85,13 +85,13 @@ The compiled binary will be available at `target/release/jati`.
 
 ## Usage
 
-### Basic Usage
+### Basic usage
 
 ```bash
 ./target/release/jati -s <sequence_file> -m <model>
 ```
 
-### Example Commands
+### Example commands
 
 ```bash
 # Basic DNA analysis with JC69 model and gaps as missing data
@@ -109,9 +109,9 @@ The compiled binary will be available at `target/release/jati`.
   --out-folder results/
 ```
 
-## Parameters
+### Parameters
 
-### Required parameters
+#### Required parameters
 
 | Parameter    | Short | Description                                     |
 | ------------ | ----- | ----------------------------------------------- |
@@ -119,7 +119,7 @@ The compiled binary will be available at `target/release/jati`.
 | `--model`    | `-m`  | Evolutionary model (see supported models below) |
 
 
-### Optional parameters
+#### Optional parameters
 
 | Parameter          | Short | Default     | Description                                                               |
 | ------------------ | ----- | ----------- | ------------------------------------------------------------------------- |
@@ -194,53 +194,77 @@ If no `--run-name` is provided, runs are identified by timestamp. Output folder 
 
 ## Examples
 
-### DNA analysis with JC69
+### DNA analysis with small dataset (JC69 model)
 
 ```bash
 ./target/release/jati \
-  --seq-file data/dna_alignment.fasta \
+  --seq-file data/wickd3b_7705.processed.fasta \
   --model JC69 \
   --gap-handling pip \
   --max-iterations 10 \
   --out-folder results/
 ```
 
-### Protein analysis with WAG
+### Protein analysis with WAG model
 
 ```bash
 ./target/release/jati \
-  --seq-file data/protein_alignment.fasta \
+  --seq-file data/whela7_Gene_0917.fasta \
   --model WAG \
   --gap-handling missing \
-  --tree-file data/protein_starting_tree.newick \
-  --freq-opt estimated \
+  --freq-opt empirical \
   --run-name protein_analysis
 ```
 
-### DNA analysis with PIP and GTR with custom starting parameters and reproducible results
+### DNA analysis with GTR model and custom parameters
 
 ```bash
 ./target/release/jati \
-  --seq-file data/dna_aligment.fasta \
+  --seq-file data/wickd3b_7705.processed.fasta \
   --model GTR \
   --gap-handling pip \
-  --params 2.0 1.5 0.7 0.6 0.8 1.2 3.0 \
+  --params 2.0 1.5 0.7 0.6 0.8 \
   --freqs 0.28 0.22 0.25 0.25 \
   --freq-opt fixed \
   --seed 12345 \
   --epsilon 1e-6
 ```
 
-### HKY Model with empirical frequencies
+### HKY model with empirical frequencies
 
 ```bash
 ./target/release/jati \
-  --seq-file data/dna_alignment.fasta \
+  --seq-file data/wickd3b_7705.processed.fasta \
   --model HKY \
-  --params 0.1 0.4 2.5 \
+  --params 2.5 \
   --freq-opt empirical \
   --max-iterations 15
 ```
+
+### Large dataset analysis with parallel execution
+
+```bash
+# Build with parallel support
+cargo build --release --features parallel
+
+# Run with thread control
+RAYON_NUM_THREADS=4 ./target/release/jati \
+  --seq-file data/HIV-1_env_DNA_mafft_alignment.fasta \
+  --model GTR \
+  --gap-handling pip \
+  --max-iterations 20 \
+  --run-name hiv_analysis
+```
+
+### Test alignments
+
+The repository includes example alignments in the `data/` folder for testing purposes.
+
+- **`wickd3b_7705.processed.fasta`**: A medium size DNA alignment from the phylogenetic benchmarks ([Zhou et al. 2018](https://academic.oup.com/mbe/article/35/2/486/4644721#113627412)).
+
+- **`whela7_Gene_0917.fasta`**: Protein alignment from the same phylogenetic benchmarks ([Zhou et al. 2018](https://academic.oup.com/mbe/article/35/2/486/4644721#113627412)).
+
+- **`HIV-1_env_DNA_mafft_alignment.fasta`**: Large DNA alignment of HIV-1 env gene sequences.
 
 ## Logging
 
