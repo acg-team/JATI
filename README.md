@@ -14,6 +14,14 @@
 
 ### Optimisation process
 
+#### Starting conditions
+
+- **Input alignment**: JATI requires aligned sequences in FASTA format as input.
+- **Starting tree**: You can provide a starting tree in Newick format using the `--tree-file` option. If no tree is provided, JATI will construct a starting tree using the Neighbor-Joining (NJ) algorithm.
+- **Model parameters**: You can optionally provide starting values for model parameters (e.g., λ and μ for PIP, substitution rate matrix values, kappa, frequencies) using the `--params` and `--freqs` options. These values will be used as initial guesses and will be optimised during the run.
+
+#### Iterative optimisation
+
 JATI uses an iterative optimisation approach:
 
 1. **Model parameter optimisation**: maximum likelihood estimation of substitution model parameters;
