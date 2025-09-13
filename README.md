@@ -305,6 +305,14 @@ This ensures deterministic results across runs on the same system with the same 
 - Error handling with `anyhow`;
 - Optional: `rayon` for parallel computation (when `parallel` feature is enabled).
 
-## License
+## Licence and Attributions
 
-This project is developed by Jūlija Pečerska (julija.pecerska@zhaw.ch).
+This project is developed by Jūlija Pečerska ([GitHub]( https://github.com/junniest ), [email]( mailto:julija.pecerska@zhaw.ch )).
+
+### Licence
+
+This project is licensed under either of
+- Apache Licence, Version 2.0 ([LICENSE-APACHE]( LICENSE-APACHE ) or [www.apache.org/licenses/LICENSE-2.0]( http://www.apache.org/licenses/LICENSE-2.0 )), or
+- MIT Licence ([LICENSE-MIT]( LICENSE-MIT ) or [opensource.org/licenses/MIT]( http://opensource.org/licenses/MIT ))
+
+at your option.
