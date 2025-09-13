@@ -89,7 +89,7 @@ pub(super) struct Cli {
         long,
         value_name = "GAP_HANDLING",
         ignore_case = true,
-        default_value = "missing"
+        default_value = "pip"
     )]
     pub(super) gap_handling: GapHandling,
 
