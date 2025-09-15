@@ -1,22 +1,43 @@
 use std::fmt::{self, Display};
 use std::path::PathBuf;
 
-use chrono::{DateTime, Local};
 use clap::Parser;
 use ftail::Ftail;
 use log::LevelFilter;
+use ntimestamp::Timestamp;
 
 use phylo::evolutionary_models::FrequencyOptimisation;
 
 use crate::Result;
 
-#[derive(Clone, clap::ValueEnum, Copy)]
+#[derive(Clone, clap::ValueEnum, Copy, Debug)]
 #[allow(clippy::upper_case_acronyms)]
 pub(super) enum GapHandling {
     PIP,
     Missing,
 }
-#[derive(Parser)]
+
+#[derive(Clone, clap::ValueEnum, Copy, Debug)]
+#[allow(clippy::upper_case_acronyms)]
+pub(super) enum SubstModelId {
+    WAG,
+    HIVB,
+    BLOSUM,
+    JC69,
+    K80,
+    HKY,
+    HKY85,
+    TN93,
+    GTR,
+}
+
+impl Display for SubstModelId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(super) struct Cli {
     /// Output folder
@@ -40,11 +61,13 @@ pub(super) struct Cli {
     pub(super) tree_file: Option<PathBuf>,
 
     /// Sequence evolution model
-    #[arg(short, long, value_name = "MODEL", rename_all = "UPPER")]
-    pub(super) model: String,
+    #[arg(short, long, value_name = "MODEL", ignore_case = true)]
+    pub(super) model: SubstModelId,
 
     /// Sequence evolution model parameters, e.g. alpha for k80 and
-    /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order)
+    /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order).
+    /// If not provided, defaults will be used.
+    /// When using PIP the first two parameters are lambda and mu.
     #[arg(short = 'p', long, value_name = "MODEL_PARAMS", num_args = 0..)]
     pub(super) params: Vec<f64>,
 
@@ -63,33 +86,44 @@ pub(super) struct Cli {
     pub(super) freq_opt: FrequencyOptimisation,
 
     /// Gap handling method: using the PIP model or treating gaps as missing data
-    #[arg(short, long, value_name = "GAP_HANDLING")]
+    #[arg(
+        short,
+        long,
+        value_name = "GAP_HANDLING",
+        ignore_case = true,
+        default_value = "pip"
+    )]
     pub(super) gap_handling: GapHandling,
 
     /// Epsilon value for numerical optimisation
     #[arg(short, long, value_name = "EPSILON", default_value = "1e-5")]
     pub(super) epsilon: f64,
+
+    /// PRNG seed that can be fixed for reproducible results
+    #[arg(long = "seed", value_name = "PRNG_SEED")]
+    pub(super) prng_seed: Option<u64>,
 }
 
 pub struct ConfigBuilder {
-    pub timestamp: DateTime<Local>,
+    pub timestamp: Timestamp,
     pub out_path: PathBuf,
     pub run_name: Option<String>,
     pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
-    pub model: String,
+    pub model: SubstModelId,
     pub params: Vec<f64>,
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
     pub epsilon: f64,
+    pub prng_seed: Option<u64>,
 }
 
 impl From<Cli> for ConfigBuilder {
     fn from(cli: Cli) -> Self {
         ConfigBuilder {
-            timestamp: Local::now(),
+            timestamp: Timestamp::now(),
             out_path: cli.out_folder,
             run_name: cli.run_name,
             max_iters: cli.max_iterations,
@@ -101,25 +135,28 @@ impl From<Cli> for ConfigBuilder {
             freq_opt: cli.freq_opt,
             gap_handling: cli.gap_handling,
             epsilon: cli.epsilon,
+            prng_seed: cli.prng_seed,
         }
     }
 }
 
 pub struct Config {
-    pub timestamp: DateTime<Local>,
+    pub timestamp: Timestamp,
     pub out_fldr: PathBuf,
     pub out_tree: PathBuf,
+    pub start_tree: PathBuf,
     pub out_logl: PathBuf,
     pub run_id: String,
     pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
-    pub model: String,
+    pub model: SubstModelId,
     pub params: Vec<f64>,
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
     pub epsilon: f64,
+    pub prng_seed: Option<u64>,
 }
 
 impl Display for Config {
@@ -136,7 +173,7 @@ impl Display for Config {
 
         let overmodel = match self.gap_handling {
             GapHandling::PIP => "PIP",
-            GapHandling::Missing => "Substitution",
+            GapHandling::Missing => "substitution",
         };
         writeln!(f, "Model setup: {} model with {} Q ", overmodel, self.model)?;
         writeln!(f, "Model parameters: {:?}", self.params)?;
@@ -153,30 +190,32 @@ impl Display for Config {
 impl ConfigBuilder {
     pub(crate) fn setup(self) -> Result<Config> {
         let run_id = self.run_name.map_or_else(
-            || self.timestamp.to_utc().timestamp_millis().to_string(),
-            |name| format!("{}_{}", name, self.timestamp.to_utc().timestamp_millis()),
+            || format!("{}", self.timestamp.as_u64()),
+            |name| format!("{}_{}", name, self.timestamp.as_u64()),
         );
 
-        let out_fldr = self.out_path.join(format!("{}_out", run_id));
+        let out_fldr = self.out_path.join(format!("{run_id}_out"));
         std::fs::create_dir_all(&out_fldr)?;
 
         Ftail::new()
-            .datetime_format("%H:%M:%S%.3f")
+            .datetime_format("%H:%M:%S")
             .console(LevelFilter::Info)
             .single_file(
-                out_fldr.join(format!("{}.log", run_id)).to_str().unwrap(),
+                out_fldr.join(format!("{run_id}.log")).to_str().unwrap(),
                 true,
                 LevelFilter::Debug,
             )
             .init()?;
 
-        let out_tree = out_fldr.join(format!("{}_tree.newick", run_id));
-        let out_logl = out_fldr.join(format!("{}_logl.out", run_id));
+        let out_tree = out_fldr.join(format!("{run_id}_tree.newick"));
+        let start_tree = out_fldr.join(format!("{run_id}_start_tree.newick"));
+        let out_logl = out_fldr.join(format!("{run_id}_logl.out"));
 
         Ok(Config {
             timestamp: self.timestamp,
             out_fldr,
             out_tree,
+            start_tree,
             out_logl,
             run_id,
             max_iters: self.max_iters,
@@ -188,6 +227,7 @@ impl ConfigBuilder {
             freq_opt: self.freq_opt,
             gap_handling: self.gap_handling,
             epsilon: self.epsilon,
+            prng_seed: self.prng_seed,
         })
     }
 }
