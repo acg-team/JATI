@@ -305,6 +305,14 @@ This ensures deterministic results across runs on the same system with the same 
 - Error handling with `anyhow`;
 - Optional: `rayon` for parallel computation (when `parallel` feature is enabled).
 
+## Related Projects
+
+- [``phylo: a high-performance Rust library for phylogenetic analysis and multiple sequence alignment under maximum likelihood and parsimony optimality criteria]( https://github.com/acg-team/rust-phylo )
+
+## Support
+
+For questions, bug reports, or feature requests, please go to [JATI discussion page]( https://github.com/acg-team/JATI/discussions ) and/or open an issue on [GitHub]( https://github.com/acg-team/JATI/issues ).
+
 ## Licence and Attributions
 
 This project is developed by Jūlija Pečerska ([GitHub]( https://github.com/junniest ), [email]( mailto:julija.pecerska@zhaw.ch )).
