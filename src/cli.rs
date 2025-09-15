@@ -171,9 +171,9 @@ impl Display for Config {
 
         let overmodel = match self.gap_handling {
             GapHandling::PIP => "PIP",
-            GapHandling::Missing => "Substitution",
+            GapHandling::Missing => "substitution",
         };
-        writeln!(f, "Model setup: {overmodel} model with {} Q ", self.model)?;
+        writeln!(f, "Model setup: {} model with {} Q ", overmodel, self.model)?;
         writeln!(f, "Model parameters: {:?}", self.params)?;
         writeln!(f, "Model frequencies: {:?}", self.freqs)?;
 
@@ -189,7 +189,7 @@ impl ConfigBuilder {
     pub(crate) fn setup(self) -> Result<Config> {
         let run_id = self.run_name.map_or_else(
             || format!("{}", self.timestamp.as_u64()),
-            |name| format!("{name}_{}", self.timestamp.as_u64()),
+            |name| format!("{}_{}", name, self.timestamp.as_u64()),
         );
 
         let out_fldr = self.out_path.join(format!("{run_id}_out"));

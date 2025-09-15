@@ -80,7 +80,7 @@ fn main() -> Result<()> {
 
     match &cfg.input_tree {
         Some(tree_file) => info!("Using tree from {}.", tree_file.display()),
-        None => info!("No input tree provided, building NJ tree from sequences."),
+        None => info!("No initial tree provided, building NJ tree from sequences."),
     }
 
     let info = PhyloInfoBuilder::new(cfg.seq_file)
@@ -150,14 +150,11 @@ fn main() -> Result<()> {
         }
     };
 
-    info!("Final log-likelihood: {}", cost);
-
     info!("Putting resulting tree in {}", cfg.out_tree.display());
-
     write_newick_to_file(std::slice::from_ref(&tree), cfg.out_tree)?;
 
+    info!("Final log-likelihood: {cost}");
     let mut out_logl = File::create(cfg.out_logl)?;
-
     writeln!(out_logl, "{cost}")?;
 
     Ok(())
