@@ -18,17 +18,19 @@ use phylo::optimisers::{
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
 use phylo::random::{DefaultGenerator, RandomSource};
-use phylo::substitution_models::{dna_models, protein_models, SubstModel, SubstitutionCostBuilder};
+use phylo::substitution_models::{
+    dna_models::*, protein_models::*, SubstModel, SubstitutionCostBuilder,
+};
 use phylo::tree::Tree;
 
 mod cli;
-use crate::cli::{Cli, ConfigBuilder, GapHandling, SubstModelId::*};
+use crate::cli::{Cli, ConfigBuilder, GapHandling as Gap, SubstModelId as Model};
 
 type Result<T> = std::result::Result<T, Error>;
 
-macro_rules! run_pip_optimisation {
-    ($model:ty, $cfg:expr, $info:expr, $rng:expr) => {
-        run_optimisation::<SprOptimiser>(
+macro_rules! pip_optimisation {
+    ($optimiser:ty, $model:ty, $cfg:expr, $info:expr, $rng:expr) => {
+        run_optimisation::<$optimiser>(
             PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params), $info)
                 .build()?,
             $cfg.freq_opt,
@@ -39,9 +41,9 @@ macro_rules! run_pip_optimisation {
     };
 }
 
-macro_rules! run_subst_optimisation {
-    ($model:ty, $cfg:expr, $info:expr, $rng:expr) => {
-        run_optimisation::<SprOptimiser>(
+macro_rules! subst_optimisation {
+    ($optimiser:ty, $model:ty, $cfg:expr, $info:expr, $rng:expr) => {
+        run_optimisation::<$optimiser>(
             SubstitutionCostBuilder::new(
                 SubstModel::<$model>::new(&$cfg.freqs, &$cfg.params),
                 $info,
@@ -66,11 +68,11 @@ fn main() -> Result<()> {
     info!("Running on sequences from {}.", cfg.seq_file.display());
 
     let alphabet = match cfg.model {
-        JC69 | K80 | HKY85 | HKY | TN93 | GTR => {
+        Model::JC69 | Model::K80 | Model::HKY85 | Model::HKY | Model::TN93 | Model::GTR => {
             info!("Assuming DNA sequences");
             dna_alphabet()
         }
-        WAG | HIVB | BLOSUM => {
+        Model::WAG | Model::HIVB | Model::BLOSUM => {
             info!("Assuming protein sequences");
             protein_alphabet()
         }
@@ -93,39 +95,58 @@ fn main() -> Result<()> {
     info!(
         "Gap handling: {}.",
         match cfg.gap_handling {
-            GapHandling::PIP => "PIP",
-            GapHandling::Missing => "as missing data",
+            Gap::PIP => "PIP",
+            Gap::Missing => "as missing data",
         }
     );
     let (cost, tree) = match (cfg.gap_handling, cfg.model) {
-        (GapHandling::PIP, JC69) => run_pip_optimisation!(dna_models::JC69, cfg, info, &rng),
-        (GapHandling::PIP, K80) => run_pip_optimisation!(dna_models::K80, cfg, info, &rng),
-        (GapHandling::PIP, HKY85) | (GapHandling::PIP, HKY) => {
-            run_pip_optimisation!(dna_models::HKY, cfg, info, &rng)
+        (Gap::PIP, Model::JC69) => {
+            pip_optimisation!(SprOptimiser, JC69, cfg, info, &rng)
         }
-        (GapHandling::PIP, TN93) => run_pip_optimisation!(dna_models::TN93, cfg, info, &rng),
-        (GapHandling::PIP, GTR) => run_pip_optimisation!(dna_models::GTR, cfg, info, &rng),
-        (GapHandling::PIP, WAG) => run_pip_optimisation!(protein_models::WAG, cfg, info, &rng),
-        (GapHandling::PIP, HIVB) => run_pip_optimisation!(protein_models::HIVB, cfg, info, &rng),
-        (GapHandling::PIP, BLOSUM) => {
-            run_pip_optimisation!(protein_models::BLOSUM, cfg, info, &rng)
+        (Gap::PIP, Model::K80) => {
+            pip_optimisation!(SprOptimiser, K80, cfg, info, &rng)
         }
-
-        (GapHandling::Missing, JC69) => run_subst_optimisation!(dna_models::JC69, cfg, info, &rng),
-        (GapHandling::Missing, K80) => run_subst_optimisation!(dna_models::K80, cfg, info, &rng),
-        (GapHandling::Missing, HKY85) | (GapHandling::Missing, HKY) => {
-            run_subst_optimisation!(dna_models::HKY, cfg, info, &rng)
+        (Gap::PIP, Model::HKY85) | (Gap::PIP, Model::HKY) => {
+            pip_optimisation!(SprOptimiser, HKY, cfg, info, &rng)
         }
-        (GapHandling::Missing, TN93) => run_subst_optimisation!(dna_models::TN93, cfg, info, &rng),
-        (GapHandling::Missing, GTR) => run_subst_optimisation!(dna_models::GTR, cfg, info, &rng),
-        (GapHandling::Missing, WAG) => {
-            run_subst_optimisation!(protein_models::WAG, cfg, info, &rng)
+        (Gap::PIP, Model::TN93) => {
+            pip_optimisation!(SprOptimiser, TN93, cfg, info, &rng)
         }
-        (GapHandling::Missing, HIVB) => {
-            run_subst_optimisation!(protein_models::HIVB, cfg, info, &rng)
+        (Gap::PIP, Model::GTR) => {
+            pip_optimisation!(SprOptimiser, GTR, cfg, info, &rng)
         }
-        (GapHandling::Missing, BLOSUM) => {
-            run_subst_optimisation!(protein_models::BLOSUM, cfg, info, &rng)
+        (Gap::PIP, Model::WAG) => {
+            pip_optimisation!(SprOptimiser, WAG, cfg, info, &rng)
+        }
+        (Gap::PIP, Model::HIVB) => {
+            pip_optimisation!(SprOptimiser, HIVB, cfg, info, &rng)
+        }
+        (Gap::PIP, Model::BLOSUM) => {
+            pip_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::JC69) => {
+            subst_optimisation!(SprOptimiser, JC69, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::K80) => {
+            subst_optimisation!(SprOptimiser, K80, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::HKY85) | (Gap::Missing, Model::HKY) => {
+            subst_optimisation!(SprOptimiser, HKY, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::TN93) => {
+            subst_optimisation!(SprOptimiser, TN93, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::GTR) => {
+            subst_optimisation!(SprOptimiser, GTR, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::WAG) => {
+            subst_optimisation!(SprOptimiser, WAG, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::HIVB) => {
+            subst_optimisation!(SprOptimiser, HIVB, cfg, info, &rng)
+        }
+        (Gap::Missing, Model::BLOSUM) => {
+            subst_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng)
         }
     };
 
