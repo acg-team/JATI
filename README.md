@@ -30,6 +30,11 @@ JATI uses an iterative optimisation approach:
 
 The process continues until convergence (change in log-likelihood < epsilon) or maximum iterations reached.
 
+### Performance
+
+- PIP model likelihood computation is more intensive and will take longer than treating gaps as missing data, as more computation needs to be done per site;
+- Tree topology optimisation with SPR moves scales quadratically with the number of taxa ($n$) and linearly with the number of sites ($m$), making the overall complexity $O(n^2m)$.
+
 ### Parallelisation
 
 When built with the `parallel` feature, JATI can use multiple CPU cores to speed up tree search by parallelising the evaluation of possible regrafting positions for each pruning location during SPR moves.
@@ -289,11 +294,6 @@ For reproducible results, you can specify a PRNG seed:
 - If provided: Uses the specified seed for all random operations.
 
 This ensures deterministic results across runs on the same system with the same input and seed.
-
-## Performance Notes
-
-- PIP model computation is more intensive than treating gaps as missing data;
-- Tree topology optimisation scales with the number of taxa.
 
 ## Dependencies
 
