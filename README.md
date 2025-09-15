@@ -134,18 +134,18 @@ The compiled binary will be available at `target/release/jati`.
 
 #### Optional parameters
 
-| Parameter          | Short | Default     | Description                                                               |
-| ------------------ | ----- | ----------- | ------------------------------------------------------------------------- |
-| `--out-folder`     | `-d`  | `.`         | Output directory for results                                              |
-| `--tree-file`      | `-t`  | None        | Input tree file in Newick format (if not provided, NJ tree will be built) |
-| `--run-name`       | `-r`  | None        | Custom identifier for the run                                             |
-| `--max-iterations` | `-x`  | `5`         | Maximum number of optimisation iterations                                 |
-| `--params`         | `-p`  | None        | Model-specific parameters (space-separated)                               |
-| `--freqs`          | `-f`  | None        | Stationary frequencies: `π_T π_C π_A π_G` (DNA) or custom (protein)       |
-| `--freq-opt`       | `-o`  | `empirical` | Frequency optimisation: `fixed`, `empirical`, or `estimated`              |
-| `--gap-handling`   | `-g`  | `pip`       | Gap handling strategy: `pip` or `missing`                                 |
-| `--epsilon`        | `-e`  | `1e-5`      | Convergence threshold for optimisation                                    |
-| `--seed`           |       | None        | PRNG seed for reproducible results                                        |
+| Parameter          | Short | Default     | Description                                                                                                   |
+| ------------------ | ----- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `--out-folder`     | `-d`  | `.`         | Output directory for results                                                                                  |
+| `--tree-file`      | `-t`  | None        | Input tree file in Newick format (if not provided, NJ tree will be built)                                     |
+| `--run-name`       | `-r`  | None        | Custom identifier for the run                                                                                 |
+| `--max-iterations` | `-x`  | `5`         | Maximum number of optimisation iterations                                                                     |
+| `--params`         | `-p`  | None        | Model-specific parameters (space-separated), when using PIP the first two parameters will be used for λ and μ |
+| `--freqs`          | `-f`  | None        | Stationary frequencies: `π_T π_C π_A π_G` (DNA) or custom (protein)                                           |
+| `--freq-opt`       | `-o`  | `empirical` | Frequency optimisation: `fixed` or `empirical`                                                                |
+| `--gap-handling`   | `-g`  | `pip`       | Gap handling strategy: `pip` or `missing`                                                                     |
+| `--epsilon`        | `-e`  | `1e-5`      | Convergence threshold for optimisation                                                                        |
+| `--seed`           |       | None        | PRNG seed for reproducible results                                                                            |
 
 ### Supported substitution models
 
@@ -207,7 +207,7 @@ If no `--run-name` is provided, runs are identified by timestamp. Output folder 
 
 ## Examples
 
-### DNA analysis with small dataset (JC69 model)
+### DNA analysis with JC69 model
 
 ```bash
 ./target/release/jati \
@@ -229,14 +229,14 @@ If no `--run-name` is provided, runs are identified by timestamp. Output folder 
   --run-name protein_analysis
 ```
 
-### DNA analysis with GTR model and custom parameters
+### DNA analysis with PIP and GTR models and custom parameters
 
 ```bash
 ./target/release/jati \
   --seq-file data/wickd3b_7705.processed.fasta \
   --model GTR \
   --gap-handling pip \
-  --params 2.0 1.5 0.7 0.6 0.8 \
+  --params 2.0 1.5 0.4 0.6 0.7 0.6 0.8 \
   --freqs 0.28 0.22 0.25 0.25 \
   --freq-opt fixed \
   --seed 12345 \
@@ -249,7 +249,7 @@ If no `--run-name` is provided, runs are identified by timestamp. Output folder 
 ./target/release/jati \
   --seq-file data/wickd3b_7705.processed.fasta \
   --model HKY \
-  --params 2.5 \
+  --params 2.0 1.5 2.5 \
   --freq-opt empirical \
   --max-iterations 15
 ```

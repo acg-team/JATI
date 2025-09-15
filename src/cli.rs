@@ -65,7 +65,9 @@ pub(super) struct Cli {
     pub(super) model: SubstModelId,
 
     /// Sequence evolution model parameters, e.g. alpha for k80 and
-    /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order)
+    /// r_tc r_ta r_tg r_ca r_cg r_ag for GTR (in this order).
+    /// If not provided, defaults will be used.
+    /// When using PIP the first two parameters are lambda and mu.
     #[arg(short = 'p', long, value_name = "MODEL_PARAMS", num_args = 0..)]
     pub(super) params: Vec<f64>,
 
