@@ -6,12 +6,15 @@ on:
   release:
     types: [published]
 
+
+    
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        features: ["" , "parallel"]
     env:
       CARGO_TERM_COLOR: always
 
@@ -35,42 +38,84 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: cargo install cargo-wix
 
+      - name: Run tests
+        run: cargo test --release ${{ matrix.features && format('--features {}', matrix.features) || '' }}
+
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release ${{ matrix.features && format('--features {}', matrix.features) || '' }}
+
+      # Strip release binary (Linux and macOS)
+      - name: Strip release binary (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: strip target/release/${{ github.event.repository.name }}
+
+      - name: Rename binary for feature variant
+        run: |
+          suffix=""
+          if [ "${{ matrix.features }}" = "parallel" ]; then
+            suffix="-parallel"
+          fi
+          mv target/release/${{ github.event.repository.name }} target/release/${{ github.event.repository.name }}${suffix}
+        shell: bash
 
       # Linux: Package .deb and .rpm
       - name: Package as .deb (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: cargo deb
+        run: |
+          suffix=""
+          if [ "${{ matrix.features }}" = "parallel" ]; then
+            suffix="-parallel"
+          fi
+          cargo deb --no-build --install-path target/release/${{ github.event.repository.name }}${suffix}
+        shell: bash
       - name: Package as .rpm (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: cargo rpm build
+        run: |
+          suffix=""
+          if [ "${{ matrix.features }}" = "parallel" ]; then
+            suffix="-parallel"
+          fi
+          cargo rpm build --no-build --install-path target/release/${{ github.event.repository.name }}${suffix}
+        shell: bash
 
       # Windows: Package as .msi
       - name: Prepare WiX (Windows)
         if: matrix.os == 'windows-latest'
         run: cargo wix init || true
+
       - name: Package as .msi (Windows)
         if: matrix.os == 'windows-latest'
-        run: cargo wix
+        run: |
+          $suffix = ""
+          if ("${{ matrix.features }}" -eq "parallel") {
+            $suffix = "-parallel"
+          }
+          cargo wix --no-build --binary target/release/${{ github.event.repository.name }}$suffix
+        shell: pwsh
 
       # MacOS: Zip binary
       - name: Zip release binary (macOS)
         if: matrix.os == 'macos-latest'
-        run: zip -j target/release/${{ github.event.repository.name }}-macos.zip target/release/${{ github.event.repository.name }}
+        run: |
+          suffix=""
+          if [ "${{ matrix.features }}" = "parallel" ]; then
+            suffix="-parallel"
+          fi
+          zip -j target/release/${{ github.event.repository.name }}${suffix}-macos.zip target/release/${{ github.event.repository.name }}${suffix}
+        shell: bash
 
       # Collect artifacts
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.os }}
+          name: installers-${{ matrix.os }}${{ matrix.features && format('-{}', matrix.features) || '' }}
           path: |
             target/debian/*.deb
             target/rpmbuild/RPMS/x86_64/*.rpm
             target/wix/*.msi
             target/release/*.exe
-            target/release/${{ github.event.repository.name }}-macos.zip
-            target/release/${{ github.event.repository.name }}
+            target/release/${{ github.event.repository.name }}*-macos.zip
+            target/release/${{ github.event.repository.name }}*
 
       # Attach to release if this is a release build
       - name: Upload to Release
