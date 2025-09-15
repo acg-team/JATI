@@ -39,10 +39,10 @@ jobs:
         run: cargo install cargo-wix
 
       - name: Run tests
-        run: cargo test --release ${{ matrix.features && format('--features {}', matrix.features) || '' }}
+        run: cargo test --release ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
 
       - name: Build release binary
-        run: cargo build --release ${{ matrix.features && format('--features {}', matrix.features) || '' }}
+        run: cargo build --release ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
 
       # Strip release binary (Linux and macOS)
       - name: Strip release binary (Linux/macOS)
@@ -108,7 +108,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.os }}${{ matrix.features && format('-{}', matrix.features) || '' }}
+          name: installers-${{ matrix.os }}${{ matrix.features && format('-{0}', matrix.features) || '' }}
           path: |
             target/debian/*.deb
             target/rpmbuild/RPMS/x86_64/*.rpm
