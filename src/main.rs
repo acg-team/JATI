@@ -99,55 +99,27 @@ fn main() -> Result<()> {
             Gap::Missing => "as missing data",
         }
     );
-    let (cost, tree) = match (cfg.gap_handling, cfg.model) {
-        (Gap::PIP, Model::JC69) => {
-            pip_optimisation!(SprOptimiser, JC69, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::K80) => {
-            pip_optimisation!(SprOptimiser, K80, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::HKY85) | (Gap::PIP, Model::HKY) => {
-            pip_optimisation!(SprOptimiser, HKY, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::TN93) => {
-            pip_optimisation!(SprOptimiser, TN93, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::GTR) => {
-            pip_optimisation!(SprOptimiser, GTR, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::WAG) => {
-            pip_optimisation!(SprOptimiser, WAG, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::HIVB) => {
-            pip_optimisation!(SprOptimiser, HIVB, cfg, info, &rng)
-        }
-        (Gap::PIP, Model::BLOSUM) => {
-            pip_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::JC69) => {
-            subst_optimisation!(SprOptimiser, JC69, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::K80) => {
-            subst_optimisation!(SprOptimiser, K80, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::HKY85) | (Gap::Missing, Model::HKY) => {
-            subst_optimisation!(SprOptimiser, HKY, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::TN93) => {
-            subst_optimisation!(SprOptimiser, TN93, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::GTR) => {
-            subst_optimisation!(SprOptimiser, GTR, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::WAG) => {
-            subst_optimisation!(SprOptimiser, WAG, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::HIVB) => {
-            subst_optimisation!(SprOptimiser, HIVB, cfg, info, &rng)
-        }
-        (Gap::Missing, Model::BLOSUM) => {
-            subst_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng)
-        }
+    let (cost, tree) = match cfg.gap_handling {
+        Gap::PIP => match cfg.model {
+            Model::JC69 => pip_optimisation!(SprOptimiser, JC69, cfg, info, &rng),
+            Model::K80 => pip_optimisation!(SprOptimiser, K80, cfg, info, &rng),
+            Model::HKY85 | Model::HKY => pip_optimisation!(SprOptimiser, HKY, cfg, info, &rng),
+            Model::TN93 => pip_optimisation!(SprOptimiser, TN93, cfg, info, &rng),
+            Model::GTR => pip_optimisation!(SprOptimiser, GTR, cfg, info, &rng),
+            Model::WAG => pip_optimisation!(SprOptimiser, WAG, cfg, info, &rng),
+            Model::HIVB => pip_optimisation!(SprOptimiser, HIVB, cfg, info, &rng),
+            Model::BLOSUM => pip_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng),
+        },
+        Gap::Missing => match cfg.model {
+            Model::JC69 => subst_optimisation!(SprOptimiser, JC69, cfg, info, &rng),
+            Model::K80 => subst_optimisation!(SprOptimiser, K80, cfg, info, &rng),
+            Model::HKY85 | Model::HKY => subst_optimisation!(SprOptimiser, HKY, cfg, info, &rng),
+            Model::TN93 => subst_optimisation!(SprOptimiser, TN93, cfg, info, &rng),
+            Model::GTR => subst_optimisation!(SprOptimiser, GTR, cfg, info, &rng),
+            Model::WAG => subst_optimisation!(SprOptimiser, WAG, cfg, info, &rng),
+            Model::HIVB => subst_optimisation!(SprOptimiser, HIVB, cfg, info, &rng),
+            Model::BLOSUM => subst_optimisation!(SprOptimiser, BLOSUM, cfg, info, &rng),
+        },
     };
 
     info!("Putting resulting tree in {}", cfg.out_tree.display());
