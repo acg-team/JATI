@@ -44,10 +44,14 @@ jobs:
       - name: Build release binary
         run: cargo build --release ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
 
+      - name: Lowercase binary name for Linux
+        run: |
+          echo "BINARY_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]')" >> ${GITHUB_ENV}        
+
       # Strip release binary (Linux and macOS)
       - name: Strip release binary (Linux/macOS)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: strip target/release/${{ github.event.repository.name }}
+        run: strip target/release/${BINARY_NAME}
 
       - name: Rename binary for feature variant
         run: |
@@ -55,7 +59,7 @@ jobs:
           if [ "${{ matrix.features }}" = "parallel" ]; then
             suffix="-parallel"
           fi
-          mv target/release/${{ github.event.repository.name }} target/release/${{ github.event.repository.name }}${suffix}
+          mv target/release/${BINARY_NAME} target/release/${BINARY_NAME}${suffix}
         shell: bash
 
       # Linux: Package .deb and .rpm
@@ -66,7 +70,7 @@ jobs:
           if [ "${{ matrix.features }}" = "parallel" ]; then
             suffix="-parallel"
           fi
-          cargo deb --no-build --install-path target/release/${{ github.event.repository.name }}${suffix}
+          cargo deb --no-build --install-path target/release/${{BINARY_NAME}}${suffix}
         shell: bash
       - name: Package as .rpm (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -75,7 +79,7 @@ jobs:
           if [ "${{ matrix.features }}" = "parallel" ]; then
             suffix="-parallel"
           fi
-          cargo rpm build --no-build --install-path target/release/${{ github.event.repository.name }}${suffix}
+          cargo rpm build --no-build --install-path target/release/${BINARY_NAME}${suffix}
         shell: bash
 
       # Windows: Package as .msi
@@ -90,7 +94,7 @@ jobs:
           if ("${{ matrix.features }}" -eq "parallel") {
             $suffix = "-parallel"
           }
-          cargo wix --no-build --binary target/release/${{ github.event.repository.name }}$suffix
+          cargo wix --no-build --binary target/release/${BINARY_NAME}$suffix
         shell: pwsh
 
       # MacOS: Zip binary
@@ -101,7 +105,7 @@ jobs:
           if [ "${{ matrix.features }}" = "parallel" ]; then
             suffix="-parallel"
           fi
-          zip -j target/release/${{ github.event.repository.name }}${suffix}-macos.zip target/release/${{ github.event.repository.name }}${suffix}
+          zip -j target/release/${BINARY_NAME}${suffix}-macos.zip target/release/${BINARY_NAME}${suffix}
         shell: bash
 
       # Collect artifacts
@@ -114,8 +118,8 @@ jobs:
             target/rpmbuild/RPMS/x86_64/*.rpm
             target/wix/*.msi
             target/release/*.exe
-            target/release/${{ github.event.repository.name }}*-macos.zip
-            target/release/${{ github.event.repository.name }}*
+            target/release/${BINARY_NAME}*-macos.zip
+            target/release/${BINARY_NAME}*
 
       # Attach to release if this is a release build
       - name: Upload to Release
@@ -127,7 +131,7 @@ jobs:
             target/rpmbuild/RPMS/x86_64/*.rpm
             target/wix/*.msi
             target/release/*.exe
-            target/release/${{ github.event.repository.name }}-macos.zip
-            target/release/${{ github.event.repository.name }}
+            target/release/${BINARY_NAME}-macos.zip
+            target/release/${BINARY_NAME}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
