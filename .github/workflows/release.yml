@@ -14,7 +14,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        features: ["" , "parallel"]
     env:
       CARGO_TERM_COLOR: always
 
@@ -39,47 +38,22 @@ jobs:
         run: cargo install cargo-wix
 
       - name: Run tests
-        run: cargo test --release ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
+        run: |
+          cargo test --release --bin jati; cargo test --release --bin jati-parallel --features "parallel"
 
       - name: Build release binary
-        run: cargo build --release ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
-
-      - name: Lowercase binary name for Linux
-        run: |
-          echo "BINARY_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]')" >> ${GITHUB_ENV}        
+        run: cargo build --release --bin jati; cargo build --release --bin jati-parallel --features "parallel"
 
       # Strip release binary (Linux and macOS)
       - name: Strip release binary (Linux/macOS)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: strip target/release/${BINARY_NAME}
-
-      - name: Rename binary for feature variant
-        run: |
-          suffix=""
-          if [ "${{ matrix.features }}" = "parallel" ]; then
-            suffix="-parallel"
-          fi
-          mv target/release/${BINARY_NAME} target/release/${BINARY_NAME}${suffix}
-        shell: bash
+        run: strip target/release/jati; strip target/release/jati-parallel
 
       # Linux: Package .deb and .rpm
       - name: Package as .deb (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          suffix=""
-          if [ "${{ matrix.features }}" = "parallel" ]; then
-            suffix="-parallel"
-          fi
-          cargo deb --no-build --install-path target/release/${BINARY_NAME}${suffix}
-        shell: bash
-      - name: Package as .rpm (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          suffix=""
-          if [ "${{ matrix.features }}" = "parallel" ]; then
-            suffix="-parallel"
-          fi
-          cargo rpm build --no-build --install-path target/release/${BINARY_NAME}${suffix}
+          cargo deb --no-build --install target/release/jati; cargo deb --no-build --install target/release/jati-parallel --features "parallel"
         shell: bash
 
       # Windows: Package as .msi
@@ -90,29 +64,21 @@ jobs:
       - name: Package as .msi (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          $suffix = ""
-          if ("${{ matrix.features }}" -eq "parallel") {
-            $suffix = "-parallel"
-          }
-          cargo wix --no-build --binary target/release/${BINARY_NAME}$suffix
+          cargo wix --no-build --binary target/release/jati; cargo wix --no-build --binary target/release/jati-parallel --features "parallel"
         shell: pwsh
 
       # MacOS: Zip binary
       - name: Zip release binary (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          suffix=""
-          if [ "${{ matrix.features }}" = "parallel" ]; then
-            suffix="-parallel"
-          fi
-          zip -j target/release/${BINARY_NAME}${suffix}-macos.zip target/release/${BINARY_NAME}${suffix}
+          zip -j target/release/jati-macos.zip target/release/jati; zip -j target/release/jati-parallel-macos.zip target/release/jati-parallel
         shell: bash
 
       # Collect artifacts
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.os }}${{ matrix.features && format('-{0}', matrix.features) || '' }}
+          name: installers
           path: |
             target/debian/*.deb
             target/rpmbuild/RPMS/x86_64/*.rpm
