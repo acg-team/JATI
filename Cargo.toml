@@ -4,10 +4,24 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jūlija Pečerska <julija.pecerska@zhaw.ch>"]
 description = "Joint Alignment and Tree Inference"
+license = "MIT OR Apache-2.0"
 
 rust-version = "1.84.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "jati"
+path = "src/main.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "jati-parallel"
+path = "src/main.rs"
+required-features = ["parallel"]
+test = false
+bench = false
 
 [profile.release]
 opt-level = 3
