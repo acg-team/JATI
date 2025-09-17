@@ -70,7 +70,7 @@ jobs:
           if [ "${{ matrix.features }}" = "parallel" ]; then
             suffix="-parallel"
           fi
-          cargo deb --no-build --install-path target/release/${{BINARY_NAME}}${suffix}
+          cargo deb --no-build --install-path target/release/${BINARY_NAME}${suffix}
         shell: bash
       - name: Package as .rpm (Linux)
         if: matrix.os == 'ubuntu-latest'
