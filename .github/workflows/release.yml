@@ -29,7 +29,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            build-tool: cargo-cross
+            build-tool: cross
           - target: x86_64-apple-darwin
             os: macos-latest
             build-tool: cargo
