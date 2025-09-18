@@ -1,103 +1,107 @@
 name: Build and release installers
 
+permissions:
+  contents: write
+
 on:
   push:
-    branches: [main]
+    tags:
+      - v[0-9]+.*
   release:
-    types: [published]
-
-
+    types: [created]
     
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      CARGO_TERM_COLOR: always
-
+  create-release:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+      - uses: taiki-e/create-gh-release-action@v1
         with:
-          toolchain: stable
-          override: true
-
-      - name: Install packaging tools (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          cargo install cargo-deb
-          cargo install cargo-rpm
-
-      - name: Install packaging tools (Windows)
-        if: matrix.os == 'windows-latest'
-        run: cargo install cargo-wix
-
-      - name: Run tests
-        run: |
-          cargo test --release --bin jati; cargo test --release --bin jati-parallel --features "parallel"
-
-      - name: Build release binary
-        run: cargo build --release --bin jati; cargo build --release --bin jati-parallel --features "parallel"
-
-      # Strip release binary (Linux and macOS)
-      - name: Strip release binary (Linux/macOS)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: strip target/release/jati; strip target/release/jati-parallel
-
-      # Linux: Package .deb and .rpm
-      - name: Package as .deb (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          cargo deb --no-build --install target/release/jati; cargo deb --no-build --install target/release/jati-parallel --features "parallel"
-        shell: bash
-
-      # Windows: Package as .msi
-      - name: Prepare WiX (Windows)
-        if: matrix.os == 'windows-latest'
-        run: cargo wix init || true
-
-      - name: Package as .msi (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cargo wix --no-build --binary target/release/jati; cargo wix --no-build --binary target/release/jati-parallel --features "parallel"
-        shell: pwsh
-
-      # MacOS: Zip binary
-      - name: Zip release binary (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          zip -j target/release/jati-macos.zip target/release/jati; zip -j target/release/jati-parallel-macos.zip target/release/jati-parallel
-        shell: bash
-
-      # Collect artifacts
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+          draft: true
+          branch: main
+          # (required) GitHub token for creating GitHub Releases.
+          token: ${{ secrets.GITHUB_TOKEN }}
+ 
+  upload-assets:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          name: installers
-          path: |
-            target/debian/*.deb
-            target/rpmbuild/RPMS/x86_64/*.rpm
-            target/wix/*.msi
-            target/release/*.exe
-            target/release/${BINARY_NAME}*-macos.zip
-            target/release/${BINARY_NAME}*
+          bin: jati
+          target: ${{ matrix.target }}
+          include: LICENSE-APACHE,LICENSE-MIT,README.md
+          tar: unix
+          zip: windows
+          # (required) GitHub token for uploading assets to GitHub Releases.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Attach to release if this is a release build
-      - name: Upload to Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+  upload-assets-parallel:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          files: |
-            target/debian/*.deb
-            target/rpmbuild/RPMS/x86_64/*.rpm
-            target/wix/*.msi
-            target/release/*.exe
-            target/release/${BINARY_NAME}-macos.zip
-            target/release/${BINARY_NAME}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          bin: jati-parallel
+          target: ${{ matrix.target }}
+          include: LICENSE-APACHE,LICENSE-MIT,README.md
+          tar: unix
+          zip: windows
+          features: parallel
+          # (required) GitHub token for uploading assets to GitHub Releases.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
+  # upload-assets-parallel:
+  #   needs: create-release
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - target: x86_64-unknown-linux-gnu
+  #           os: ubuntu-latest
+  #         - target: x86_64-apple-darwin
+  #           os: macos-latest
+  #         - target: x86_64-pc-windows-msvc
+  #           os: windows-latest
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: taiki-e/upload-rust-binary-action@v1
+  #       with:
+  #         # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
+  #         # Note that glob pattern is not supported yet.
+  #         bin: jati-parallel
+  #         # (optional) Target triple, default is host triple.
+  #         target: ${{ matrix.target }}
+  #         # (optional) On which platform to distribute the `.tar.gz` file.
+  #         # [default value: unix]
+  #         # [possible values: all, unix, windows, none]
+  #         tar: unix
+  #         # (optional) On which platform to distribute the `.zip` file.
+  #         # [default value: windows]
+  #         # [possible values: all, unix, windows, none]
+  #         zip: windows
+  #         features: parallel
+  #         # (optional) Build with the given set of features if any.
+  #         # (required) GitHub token for uploading assets to GitHub Releases.
+  #         token: ${{ secrets.GITHUB_TOKEN }}
