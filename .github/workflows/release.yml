@@ -29,10 +29,13 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            build-tool: cargo-cross
           - target: x86_64-apple-darwin
             os: macos-latest
+            build-tool: cargo
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+            build-tool: cargo
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +43,7 @@ jobs:
         with:
           bin: jati
           target: ${{ matrix.target }}
+          build-tool: ${{ matrix.build-tool }}
           include: LICENSE-APACHE,LICENSE-MIT,README.md
           tar: unix
           zip: windows
@@ -64,6 +68,7 @@ jobs:
         with:
           bin: jati-parallel
           target: ${{ matrix.target }}
+          build-tool: ${{ matrix.build-tool }}
           include: LICENSE-APACHE,LICENSE-MIT,README.md
           tar: unix
           zip: windows
