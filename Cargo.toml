@@ -2,9 +2,15 @@
 name = "jati"
 version = "0.1.0"
 edition = "2021"
-authors = ["Jūlija Pečerska <julija.pecerska@zhaw.ch>"]
-description = "Joint Alignment and Tree Inference"
+repository = "https://github.com/acg-team/JATI"
 license = "MIT OR Apache-2.0"
+description = "(Joint Alignment) and Tree Inference"
+keywords = ["phylogenetics", "computational biology", "maximum likelihood"]
+categories = ["science", "science::bioinformatics", "algorithms"]
+exclude = [
+    ".github/",
+    "target/",
+]
 
 rust-version = "1.84.0"
 
@@ -36,7 +42,7 @@ debug = true
 clap = { version = "4.3.11", features = ["derive"] }
 log = "0.4.19"
 ftail = "0.2.0"
-phylo = { git = "https://github.com/acg-team/rust-phylo", tag = "v0.1.0-alpha" }
+phylo = { git = "https://github.com/acg-team/rust-phylo", tag = "v0.1.0-alpha", version = "0.1.0-alpha", features = ["par-regraft-manual"] }
 anyhow = "1.0.86"
 ntimestamp = "1.0.0"
 
