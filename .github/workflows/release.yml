@@ -3,6 +3,9 @@ name: Build and release installers
 permissions:
   contents: write
 
+env:
+  RUSTFLAGS: "-C target-feature=+crt-static"
+
 on:
   push:
     tags:
