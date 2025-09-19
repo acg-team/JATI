@@ -35,14 +35,11 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - name: set env var for static linking
-        run: echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: jati
           target: ${{ matrix.target }}
-          build-tool: ${{ matrix.build-tool }}
           include: LICENSE-APACHE,LICENSE-MIT,README.md
           tar: unix
           zip: windows
@@ -62,14 +59,11 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - name: set env var for static linking
-        run: echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: jati-parallel
           target: ${{ matrix.target }}
-          build-tool: ${{ matrix.build-tool }}
           include: LICENSE-APACHE,LICENSE-MIT,README.md
           tar: unix
           zip: windows
