@@ -3,9 +3,6 @@ name: Build and release installers
 permissions:
   contents: write
 
-env:
-  RUSTFLAGS: "-C target-feature=+crt-static"
-
 on:
   push:
     tags:
@@ -32,15 +29,14 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            build-tool: cross
           - target: x86_64-apple-darwin
             os: macos-latest
-            build-tool: cargo
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            build-tool: cargo
     runs-on: ${{ matrix.os }}
     steps:
+      - name: set env var for static linking
+        run: echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -66,6 +62,8 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - name: set env var for static linking
+        run: echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
