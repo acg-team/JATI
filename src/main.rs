@@ -12,8 +12,7 @@ use phylo::evolutionary_models::FrequencyOptimisation;
 use phylo::io::write_newick_to_file;
 use phylo::likelihood::{ModelSearchCost, TreeSearchCost};
 use phylo::optimisers::{
-    Compatible, ModelOptimiser, MoveOptimiser, SprOptimiser, TopologyOptimiser,
-    TopologyOptimiserPredicate,
+    Compatible, ModelOptimiser, MoveOptimiser, SprOptimiser, StopCondition, TopologyOptimiser,
 };
 use phylo::phylo_info::PhyloInfoBuilder;
 use phylo::pip_model::{PIPCostBuilder, PIPModel};
@@ -34,8 +33,7 @@ macro_rules! pip_optimisation {
             PIPCostBuilder::new(PIPModel::<$model>::new(&$cfg.freqs, &$cfg.params), $info)
                 .build()?,
             $cfg.freq_opt,
-            $cfg.max_iters,
-            $cfg.epsilon,
+            $cfg.stop_condition,
             $rng,
         )?
     };
@@ -50,8 +48,7 @@ macro_rules! subst_optimisation {
             )
             .build()?,
             $cfg.freq_opt,
-            $cfg.max_iters,
-            $cfg.epsilon,
+            $cfg.stop_condition,
             $rng,
         )?
     };
@@ -150,41 +147,49 @@ fn setup_rng(cfg: &cli::Config) -> DefaultGenerator {
 fn run_optimisation<MO>(
     cost: impl TreeSearchCost + ModelSearchCost + Display + Clone + Send + Compatible<MO>,
     freq_opt: FrequencyOptimisation,
-    max_iterations: usize,
-    epsilon: f64,
+    stop_condition: StopCondition,
     rng: &impl RandomSource,
 ) -> Result<(f64, Tree)>
 where
     MO: MoveOptimiser + Default,
 {
+    // only propagate epsilon-based stopping condition to intermediate optimisation loops
+    let intermediate_stop_condition = match stop_condition {
+        StopCondition::Epsilon(e) => StopCondition::epsilon(e),
+        StopCondition::MaxIterEpsilon(_, e) => StopCondition::epsilon(e),
+        _ => StopCondition::default(),
+    };
+
     let mut cost = cost;
     let mut prev_cost = f64::NEG_INFINITY;
-    let mut final_cost = TreeSearchCost::cost(&cost);
+    let mut curr_cost = TreeSearchCost::cost(&cost);
 
     let mut iterations = 0;
-    while final_cost - prev_cost > epsilon && iterations < max_iterations {
+    let mut delta = curr_cost - prev_cost;
+
+    while stop_condition.should_continue(iterations, delta) {
         iterations += 1;
-        info!("Iteration: {}", iterations);
-
+        info!("Iteration: {iterations}, current cost: {curr_cost}");
         let move_optimiser = MO::default();
-
-        prev_cost = final_cost;
-        let model_optimiser = ModelOptimiser::new(cost, freq_opt);
-        let o = TopologyOptimiser::new_with_pred(
+        prev_cost = curr_cost;
+        let model_optimiser =
+            ModelOptimiser::with_stop_condition(cost, freq_opt, intermediate_stop_condition);
+        let o = TopologyOptimiser::with_stop_condition(
             model_optimiser.run()?.cost,
             move_optimiser,
             rng,
-            TopologyOptimiserPredicate::gt_epsilon(epsilon),
+            intermediate_stop_condition,
         )
         .run()
         .unwrap();
-        final_cost = o.final_cost;
+        curr_cost = o.final_cost;
         cost = o.cost;
+        delta = curr_cost - prev_cost;
     }
 
-    info!("Final cost after {} iterations: {}", iterations, final_cost);
+    info!("Final cost after {} iterations: {}", iterations, curr_cost);
     debug!("Final parameters: {:?}", cost.params());
     debug!("Final frequencies: {:?}", cost.freqs());
     debug!("Final tree: {}", cost.tree());
-    Ok((final_cost, cost.tree().clone()))
+    Ok((curr_cost, cost.tree().clone()))
 }

@@ -61,7 +61,7 @@ When using the `parallel` feature, results remain deterministic when a PRNG seed
 
 ###
 
-Pre-compiled binaries will be available shortly.
+Pre-compiled binaries for different platforms are available on the [release page]( https://github.com/acg-team/JATI/releases ).
 
 ### Building from source
 

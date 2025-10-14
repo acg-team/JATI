@@ -1,12 +1,14 @@
 use std::fmt::{self, Display};
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use clap::Parser;
 use ftail::Ftail;
-use log::LevelFilter;
+use log::{warn, LevelFilter};
 use ntimestamp::Timestamp;
 
 use phylo::evolutionary_models::FrequencyOptimisation;
+use phylo::optimisers::StopCondition;
 
 use crate::Result;
 
@@ -49,8 +51,8 @@ pub(super) struct Cli {
     pub(super) run_name: Option<String>,
 
     /// Max iterations for the optimisation
-    #[arg(short = 'x', long, value_name = "MAX_ITERATIONS", default_value = "5")]
-    pub(super) max_iterations: usize,
+    #[arg(short = 'x', long, value_name = "MAX_ITERATIONS")]
+    pub(super) max_iterations: Option<usize>,
 
     /// Sequence file in fasta format
     #[arg(short, long, value_name = "SEQ_FILE")]
@@ -108,7 +110,6 @@ pub struct ConfigBuilder {
     pub timestamp: Timestamp,
     pub out_path: PathBuf,
     pub run_name: Option<String>,
-    pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
     pub model: SubstModelId,
@@ -116,17 +117,27 @@ pub struct ConfigBuilder {
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
-    pub epsilon: f64,
+    pub stop_condition: StopCondition,
     pub prng_seed: Option<u64>,
 }
 
 impl From<Cli> for ConfigBuilder {
     fn from(cli: Cli) -> Self {
+        let stop_condition = if let Some(max_iters) = cli.max_iterations {
+            if max_iters == 0 {
+                warn!("Max iterations must be greater than 0, setting to 1 instead");
+                StopCondition::max_iter_epsilon(NonZeroUsize::new(1).unwrap(), cli.epsilon)
+            } else {
+                StopCondition::max_iter_epsilon(NonZeroUsize::new(max_iters).unwrap(), cli.epsilon)
+            }
+        } else {
+            StopCondition::epsilon(cli.epsilon)
+        };
+
         ConfigBuilder {
             timestamp: Timestamp::now(),
             out_path: cli.out_folder,
             run_name: cli.run_name,
-            max_iters: cli.max_iterations,
             seq_file: cli.seq_file,
             input_tree: cli.tree_file,
             model: cli.model,
@@ -134,7 +145,7 @@ impl From<Cli> for ConfigBuilder {
             freqs: cli.freqs,
             freq_opt: cli.freq_opt,
             gap_handling: cli.gap_handling,
-            epsilon: cli.epsilon,
+            stop_condition,
             prng_seed: cli.prng_seed,
         }
     }
@@ -147,7 +158,6 @@ pub struct Config {
     pub start_tree: PathBuf,
     pub out_logl: PathBuf,
     pub run_id: String,
-    pub max_iters: usize,
     pub seq_file: PathBuf,
     pub input_tree: Option<PathBuf>,
     pub model: SubstModelId,
@@ -155,7 +165,7 @@ pub struct Config {
     pub freqs: Vec<f64>,
     pub freq_opt: FrequencyOptimisation,
     pub gap_handling: GapHandling,
-    pub epsilon: f64,
+    pub stop_condition: StopCondition,
     pub prng_seed: Option<u64>,
 }
 
@@ -181,8 +191,8 @@ impl Display for Config {
 
         writeln!(
             f,
-            "Optimisation setup: frequencies: {:#?}, max iterations: {}, epsilon: {}",
-            self.freq_opt, self.max_iters, self.epsilon
+            "Optimisation setup: frequencies: {:#?}, stopping condition: {}",
+            self.freq_opt, self.stop_condition,
         )
     }
 }
@@ -218,7 +228,7 @@ impl ConfigBuilder {
             start_tree,
             out_logl,
             run_id,
-            max_iters: self.max_iters,
+
             seq_file: self.seq_file,
             input_tree: self.input_tree,
             model: self.model,
@@ -226,7 +236,7 @@ impl ConfigBuilder {
             freqs: self.freqs,
             freq_opt: self.freq_opt,
             gap_handling: self.gap_handling,
-            epsilon: self.epsilon,
+            stop_condition: self.stop_condition,
             prng_seed: self.prng_seed,
         })
     }
