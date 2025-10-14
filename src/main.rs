@@ -182,9 +182,9 @@ where
         )
         .run()
         .unwrap();
-        delta = curr_cost - prev_cost;
         curr_cost = o.final_cost;
         cost = o.cost;
+        delta = curr_cost - prev_cost;
     }
 
     info!("Final cost after {} iterations: {}", iterations, curr_cost);
