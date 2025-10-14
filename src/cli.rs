@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use ftail::Ftail;
-use log::LevelFilter;
+use log::{warn, LevelFilter};
 use ntimestamp::Timestamp;
 
 use phylo::evolutionary_models::FrequencyOptimisation;
@@ -124,7 +124,12 @@ pub struct ConfigBuilder {
 impl From<Cli> for ConfigBuilder {
     fn from(cli: Cli) -> Self {
         let stop_condition = if let Some(max_iters) = cli.max_iterations {
-            StopCondition::max_iter_epsilon(NonZeroUsize::new(max_iters).unwrap(), cli.epsilon)
+            if max_iters == 0 {
+                warn!("Max iterations must be greater than 0, setting to 1 instead");
+                StopCondition::max_iter_epsilon(NonZeroUsize::new(1).unwrap(), cli.epsilon)
+            } else {
+                StopCondition::max_iter_epsilon(NonZeroUsize::new(max_iters).unwrap(), cli.epsilon)
+            }
         } else {
             StopCondition::epsilon(cli.epsilon)
         };
