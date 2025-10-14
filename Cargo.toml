@@ -7,10 +7,8 @@ license = "MIT OR Apache-2.0"
 description = "(Joint Alignment) and Tree Inference"
 keywords = ["phylogenetics", "computational biology", "maximum likelihood"]
 categories = ["science", "science::bioinformatics", "algorithms"]
-exclude = [
-    ".github/",
-    "target/",
-]
+include = ["src/", "README.md", "LICENSE-APACHE", "LICENSE-MIT", "data/"]
+
 
 rust-version = "1.84.0"
 
